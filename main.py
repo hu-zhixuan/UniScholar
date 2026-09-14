@@ -25,6 +25,7 @@ if hasattr(sys.stderr, "reconfigure"):
 import utils.network_config  # noqa: F401
 
 from agents.data_agent import DataAgent
+from agents.intent_agent import IntentAgent
 from agents.literature_agent import LiteratureAgent
 from agents.reference_agent import ReferenceAgent
 from agents.review_agent import ReviewAgent
@@ -75,6 +76,24 @@ def run_full_pipeline(
 
     logger.info(f"🚀 开始执行 UniScholar 工作流任务: {task_id}")
 
+    # ==================== Step 0: 学术意图理解与管线规划 (LLM Think First) ====================
+    if "intent_formulation" not in state.completed_steps:
+        state.status = WorkflowStatus.RUNNING
+        state.current_step = WorkflowStep.INTENT_FORMULATION
+        engine.log(state, "启动节点 0: 学术意图理解与检索管线规划 (LLM Think First)")
+
+        intent_agent = IntentAgent()
+        plan = intent_agent.formulate(
+            query=state.params.get("query", query),
+            user_keywords=state.params.get("keywords", keywords),
+            years=state.params.get("years", years),
+            max_papers=state.params.get("max_papers", max_papers),
+        )
+        state.data["intent_plan"] = plan.model_dump()
+        state.completed_steps.append("intent_formulation")
+        engine.save_checkpoint(state)
+        engine.log(state, f"节点 0 完成: 提炼英文课题【{plan.academic_topic_en}】，规划高区分度检索短语: {plan.search_queries}")
+
     # ==================== Step 1: 文献检索与递归筛选 ====================
     if "literature_retrieval" not in state.completed_steps:
         state.status = WorkflowStatus.RUNNING
@@ -82,11 +101,14 @@ def run_full_pipeline(
         engine.log(state, "启动节点 1: 文献自动化检索与递归筛选")
 
         lit_agent = LiteratureAgent()
+        plan_data = state.data.get("intent_plan", {})
         lit_res = lit_agent.run(
             query=state.params.get("query", query),
             keywords=state.params.get("keywords", keywords),
             years=state.params.get("years", years),
             max_papers=state.params.get("max_papers", max_papers),
+            search_queries=plan_data.get("search_queries"),
+            filter_keywords=plan_data.get("filter_keywords"),
         )
         state.data["literature_pool"] = lit_res["papers"]
         state.data["literature_stats"] = {
@@ -104,7 +126,10 @@ def run_full_pipeline(
         engine.log(state, "启动节点 2: 文献核心信息与创新点抽取")
 
         rev_agent = ReviewAgent()
-        features = rev_agent.batch_extract(state.data.get("literature_pool", []))
+        features = rev_agent.batch_extract(
+            state.data.get("literature_pool", []),
+            topic=state.params.get("query", query),
+        )
         state.data["extracted_features"] = [f.model_dump() for f in features]
         summary_md = rev_agent.generate_summary_collection(features)
         state.data["summary_collection_md"] = summary_md
@@ -172,10 +197,23 @@ def run_full_pipeline(
     # ==================== Step 6: 参考文献国标排版与校对 ====================
     if "reference_format" not in state.completed_steps:
         state.current_step = WorkflowStep.REFERENCE_FORMAT
-        engine.log(state, "启动节点 6: 参考文献 GB/T 7714 自动排版与校对")
-
         ref_agent = ReferenceAgent()
-        raw_ref_text = raw_references or get_sample_references_text()
+        if raw_references:
+            raw_ref_text = raw_references
+        elif state.data.get("literature_pool"):
+            pool = state.data.get("literature_pool", [])
+            ref_lines = []
+            for idx, p in enumerate(pool[:15], 1):
+                authors = p.get("authors", [])
+                auth_str = ", ".join(authors) if authors else "佚名"
+                title = p.get("title", "未命名文献")
+                year = p.get("publication_year", 2024)
+                source = p.get("source", "学术期刊")
+                ref_lines.append(f"[{idx}] {auth_str}. {title}. {source}, {year}.")
+            raw_ref_text = "\n".join(ref_lines)
+        else:
+            raw_ref_text = get_sample_references_text()
+
         ref_res = ref_agent.run(raw_ref_text, target_format="GB/T 7714")
 
         state.data["formatted_references"] = ref_res["formatted_text"]
