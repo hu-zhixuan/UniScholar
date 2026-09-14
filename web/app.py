@@ -51,7 +51,7 @@ current_active_task_id = None
 
 
 def render_claude_pipeline(current_step: str, status: str) -> str:
-    """生成具有 Claude 质感的优雅工作流 Pipeline 进度卡片"""
+    """生成具有 Claude 质感的优雅工作流 Pipeline 进度卡片与流光进度条"""
     steps = [
         ("0. 学术意图规划", WorkflowStep.INTENT_FORMULATION.value, "✦"),
         ("1. 候选文献召回 (HITL)", WorkflowStep.LITERATURE_RETRIEVAL.value, "✦"),
@@ -65,58 +65,139 @@ def render_claude_pipeline(current_step: str, status: str) -> str:
     if status == WorkflowStatus.COMPLETED.value:
         cur_idx = 5
 
+    # 精确计算平滑进度百分比与当前动作指示
+    if status == WorkflowStatus.COMPLETED.value:
+        pct = 100
+        progress_text = "全流程科研成果已全部交付 (100%)"
+        badge_style = "background: #F0F5F0; color: #2D6A3E; border: 1px solid #C8E6C9;"
+        bar_gradient = "linear-gradient(90deg, #52B788 0%, #2D6A3E 100%)"
+        bar_shadow = "0 0 10px rgba(45, 106, 62, 0.35)"
+    elif current_step == WorkflowStep.INTENT_FORMULATION.value:
+        pct = 20
+        progress_text = "Step 0 · 正在解耦学术选题与规划检索词 (20%)"
+        badge_style = "background: #FDF3EE; color: #C25E3E; border: 1px solid #F5C6B5;"
+        bar_gradient = "linear-gradient(90deg, #F5B041 0%, #C25E3E 100%)"
+        bar_shadow = "0 0 10px rgba(194, 94, 62, 0.3)"
+    elif current_step == WorkflowStep.LITERATURE_RETRIEVAL.value:
+        if status == WorkflowStatus.PAUSED.value:
+            pct = 40
+            progress_text = "Step 1 · 20篇候选文献池已就绪 · 人在回路待学者点选 (40%)"
+            badge_style = "background: #FEF8EC; color: #A06400; border: 1px solid #F5DAA5;"
+            bar_gradient = "linear-gradient(90deg, #F5B041 0%, #D97706 100%)"
+            bar_shadow = "0 0 12px rgba(217, 119, 6, 0.4)"
+        else:
+            pct = 35
+            progress_text = "Step 1 · 跨源检索 20 篇真实候选文献中 (35%)"
+            badge_style = "background: #FDF3EE; color: #C25E3E; border: 1px solid #F5C6B5;"
+            bar_gradient = "linear-gradient(90deg, #E27D60 0%, #C25E3E 100%)"
+            bar_shadow = "0 0 10px rgba(194, 94, 62, 0.3)"
+    elif current_step == WorkflowStep.FEATURE_EXTRACTION.value:
+        pct = 60
+        progress_text = "Step 2 · 核心文献要素与微观机制深度萃取中 (60%)"
+        badge_style = "background: #FDF3EE; color: #C25E3E; border: 1px solid #F5C6B5;"
+        bar_gradient = "linear-gradient(90deg, #E27D60 0%, #C25E3E 60%, #52B788 100%)"
+        bar_shadow = "0 0 10px rgba(194, 94, 62, 0.3)"
+    elif current_step == WorkflowStep.OUTLINE_GENERATION.value:
+        pct = 80
+        progress_text = "Step 3 · 领域专属新论文综述大纲推演生成中 (80%)"
+        badge_style = "background: #FDF3EE; color: #C25E3E; border: 1px solid #F5C6B5;"
+        bar_gradient = "linear-gradient(90deg, #E27D60 0%, #C25E3E 50%, #52B788 100%)"
+        bar_shadow = "0 0 10px rgba(45, 106, 62, 0.3)"
+    elif current_step == WorkflowStep.REVIEW_SYNTHESIS.value:
+        pct = 90
+        progress_text = "Step 4 · 长篇学术综述初稿合成与 Citation 防幻觉核验中 (90%)"
+        badge_style = "background: #FDF3EE; color: #C25E3E; border: 1px solid #F5C6B5;"
+        bar_gradient = "linear-gradient(90deg, #E27D60 0%, #C25E3E 30%, #2D6A3E 100%)"
+        bar_shadow = "0 0 12px rgba(45, 106, 62, 0.35)"
+    else:
+        pct = 0
+        progress_text = "智能体集群已就绪，等待启动 (Ready)"
+        badge_style = "background: #F4F1EA; color: #79746C; border: 1px solid #E2DDD5;"
+        bar_gradient = "#E2DDD5"
+        bar_shadow = "none"
+
     html_items = []
     for idx, (name, key, icon) in enumerate(steps):
+        step_num = f"0{idx}"
         if status == WorkflowStatus.COMPLETED.value or idx < cur_idx:
             # 优雅鼠尾草绿 (Sage Green - 已完成)
-            style = "background: #F0F5F0; color: #2D6A3E; border: 1px solid #D1E3D3;"
+            style = "background: #F0F5F0; color: #2D6A3E; border: 1.5px solid #C8E6C9;"
             tag = "已完成 ✓"
+            node_dot = '<span style="display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: #2D6A3E; margin-right: 5px;"></span>'
         elif idx == cur_idx:
             if status == WorkflowStatus.PAUSED.value:
                 # 暖杏琥珀色 (Amber Gold - 待学者点选)
-                style = "background: #FEF8EC; color: #A06400; border: 1.5px solid #F5DAA5; box-shadow: 0 0 10px rgba(160,100,0,0.12);"
+                style = "background: #FEF8EC; color: #A06400; border: 1.5px solid #F5DAA5; box-shadow: 0 0 14px rgba(160,100,0,0.18);"
                 tag = "待学者点选 ⏸️"
+                node_dot = '<span class="claude-pulse-paused" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #D97706; margin-right: 5px;"></span>'
             elif status == WorkflowStatus.RUNNING.value:
                 # 克劳德陶土珊瑚色 (Claude Terracotta - 进行中)
-                style = "background: #FDF3EE; color: #C25E3E; border: 1.5px solid #F5C6B5; box-shadow: 0 0 12px rgba(194,94,62,0.15);"
+                style = "background: #FDF3EE; color: #C25E3E; border: 1.5px solid #F5C6B5; box-shadow: 0 0 14px rgba(194,94,62,0.2);"
                 tag = "执行中 ⏳"
+                node_dot = '<span class="claude-pulse-active" style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #CC785C; margin-right: 5px;"></span>'
             else:
                 style = "background: #F7F4EE; color: #78736B; border: 1px solid #E8E2D6;"
-                tag = "等待"
+                tag = "就绪"
+                node_dot = '<span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #A8A196; margin-right: 5px;"></span>'
         else:
             # 柔和暖燕麦灰 (Muted Sand - 待执行)
-            style = "background: #FAF8F5; color: #A8A196; border: 1px solid #ECE7DE;"
+            style = "background: #FAF8F5; color: #9E978D; border: 1px solid #EDE8DF;"
             tag = "待执行"
+            node_dot = '<span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #D4CEBF; margin-right: 5px;"></span>'
 
         html_items.append(f"""
-        <div style="flex: 1; min-width: 140px; padding: 9px 14px; border-radius: 10px; {style}; display: flex; flex-direction: column; gap: 3px; font-family: inherit;">
+        <div style="flex: 1; min-width: 145px; padding: 10px 14px; border-radius: 11px; {style}; display: flex; flex-direction: column; gap: 4px; font-family: inherit; transition: all 0.3s ease;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 600; font-size: 13px;">{icon} {name}</span>
-                <span style="font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,0.7);">{tag}</span>
+                <span style="font-size: 11px; font-weight: 700; opacity: 0.7; letter-spacing: 0.5px;">STEP {step_num}</span>
+                <span style="font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; background: rgba(255,255,255,0.85);">{tag}</span>
+            </div>
+            <div style="font-weight: 600; font-size: 13px; display: flex; align-items: center; margin-top: 2px;">
+                {node_dot}<span>{name}</span>
             </div>
         </div>
         """)
 
-    connector = '<div style="color: #D6D0C4; font-weight: 400; font-size: 14px; align-self: center;">➔</div>'
+    connector = '<div style="color: #D6D0C4; font-weight: 600; font-size: 13px; align-self: center; padding: 0 1px;">➔</div>'
     joined_nodes = f" {connector} ".join(html_items)
 
     status_pill = {
-        WorkflowStatus.IDLE.value: '<span style="color: #79746C;">● 智能体就绪 (Ready)</span>',
+        WorkflowStatus.IDLE.value: '<span style="color: #79746C; font-weight: 500;">● 智能体就绪 (Ready)</span>',
         WorkflowStatus.RUNNING.value: '<span style="color: #C25E3E; font-weight: 600;">● 自主编排执行中 (Running)</span>',
         WorkflowStatus.PAUSED.value: '<span style="color: #A06400; font-weight: 600;">● 候选文献池挂起 · 等待学者精选 (HITL Paused)</span>',
         WorkflowStatus.COMPLETED.value: '<span style="color: #2D6A3E; font-weight: 600;">● 全流程已交付 (Completed)</span>',
     }.get(status, '<span style="color: #79746C;">就绪</span>')
 
     return f"""
-    <div style="background: #FFFFFF; border: 1px solid #E8E3DA; border-radius: 14px; padding: 14px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); margin-bottom: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
-            <div style="font-size: 13px; font-weight: 600; color: #2B2824; display: flex; align-items: center; gap: 8px;">
-                <span>✦ 通用智能体工作流执行管线 (StateGraph DAG Pipeline)</span>
-                <span style="font-size: 11px; background: #F4F1EA; color: #6E685E; padding: 2px 8px; border-radius: 12px;">联通元景万悟标准</span>
+    <div style="background: #FFFFFF; border: 1px solid #E8E3DA; border-radius: 16px; padding: 16px 22px; box-shadow: 0 3px 14px rgba(0,0,0,0.02); margin-bottom: 22px;">
+        <!-- 标题栏与状态徽章 -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div style="font-size: 13.5px; font-weight: 700; color: #2B2824; display: flex; align-items: center; gap: 8px;">
+                <span style="color: #CC785C; font-size: 15px;">✦</span>
+                <span>通用智能体工作流执行管线 (StateGraph DAG Pipeline)</span>
+                <span style="font-size: 11px; background: #F4F1EA; color: #6E685E; padding: 2px 9px; border-radius: 12px; font-weight: 500;">联通元景万悟标准</span>
             </div>
-            <div style="font-size: 12px; font-family: inherit;">{status_pill}</div>
+            <div style="font-size: 12.5px; font-family: inherit;">{status_pill}</div>
         </div>
-        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+
+        <!-- 极具 Claude 质感的流光连续进度条 -->
+        <div style="margin: 6px 0 16px 0; background: #FAF8F5; padding: 10px 14px; border-radius: 10px; border: 1px solid #ECE7DE;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 12px; font-weight: 600; color: #4A443B;">全流程编排进度 (Workflow Timeline Progress)</span>
+                    <span style="font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; {badge_style};">{progress_text}</span>
+                </div>
+                <div style="display: flex; align-items: baseline; gap: 2px;">
+                    <span style="font-size: 14px; font-weight: 700; color: #C25E3E; font-family: ui-monospace, SFMono-Regular, monospace;">{pct}</span>
+                    <span style="font-size: 11px; font-weight: 600; color: #A8A196;">%</span>
+                </div>
+            </div>
+            <div style="height: 8px; width: 100%; background: #E6E0D6; border-radius: 999px; overflow: hidden; position: relative;">
+                <div class="claude-progress-shimmer" style="height: 100%; width: {pct}%; background: {bar_gradient}; border-radius: 999px; transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: {bar_shadow};"></div>
+            </div>
+        </div>
+
+        <!-- 5大节点卡片连线图 -->
+        <div style="display: flex; gap: 10px; flex-wrap: wrap; align-items: stretch;">
             {joined_nodes}
         </div>
     </div>
@@ -220,9 +301,10 @@ def format_features_markdown(features):
 
 
 # ==================== 工作流事件调度 (Decision 1 & 3: 单阶段人在回路漏斗) ====================
-def start_research_flow(query, keywords_str, years, max_papers, pause_hitl, data_file, refs_text):
+def start_research_flow(query, keywords_str, years, max_papers, pause_hitl, data_file, refs_text, progress=gr.Progress(track_tqdm=True)):
     global current_active_task_id
 
+    progress(0.05, desc="✦ [0/5] 学术意图规划：正在解耦核心科学选题与跨学科关键词...")
     if not query.strip():
         query = "通用智能体在高校科研流程中的自动化应用"
 
@@ -246,6 +328,7 @@ def start_research_flow(query, keywords_str, years, max_papers, pause_hitl, data
     engine.save_checkpoint(state)
 
     # 1. 跨源检索候选文献池 (~20篇)
+    progress(0.20, desc="✦ [1/5] 文献初筛：正在通过 OpenAlex 与 Europe PMC 跨源检索候选文献池 (~20篇)...")
     state.current_step = WorkflowStep.LITERATURE_RETRIEVAL
     lit_res = lit_agent.run(
         query=query,
@@ -255,6 +338,7 @@ def start_research_flow(query, keywords_str, years, max_papers, pause_hitl, data
         search_queries=plan.search_queries,
         filter_keywords=plan.filter_keywords,
     )
+    progress(0.35, desc="✦ [1/5] 候选文献已检索就绪，正在生成学术中文要点索引表...")
     candidate_papers = lit_res["papers"]
     state.data["candidate_pool"] = candidate_papers
     state.data["literature_pool"] = candidate_papers
@@ -280,6 +364,7 @@ def start_research_flow(query, keywords_str, years, max_papers, pause_hitl, data
     counter_md = f"### 🎯 已选核心文献池: **{len(default_selected)}** / {len(candidate_papers)} 篇\n> AI 将仅针对您选中的核心文献展开深度要素抽取、新论文综述大纲规划与初稿长文合成。"
 
     if pause_hitl:
+        progress(0.40, desc="✦ [人在回路] 20篇候选文献池已就绪，工作流断点挂起，等待学者点选核心文献...")
         engine.pause_task(state.task_id, reason="人在回路：已检索20篇候选文献池，等待学者挑选核心文献")
         state = engine.load_checkpoint(state.task_id)
         pipeline_html = render_claude_pipeline(state.current_step.value, state.status.value)
@@ -303,7 +388,7 @@ def start_research_flow(query, keywords_str, years, max_papers, pause_hitl, data
 
     # 若关闭人在回路，默认直接使用推荐 Top 6 文献平滑续跑
     selected_papers = candidate_papers[:6]
-    res = continue_research_flow(state.task_id, selected_papers, data_file, refs_text)
+    res = continue_research_flow(state.task_id, selected_papers, data_file, refs_text, progress=progress)
     return (
         res[0],
         gr.update(visible=False),
@@ -383,7 +468,7 @@ def clear_candidate_selection_action():
     return []
 
 
-def resume_research_with_selected_papers(selected_choices, data_file, refs_text):
+def resume_research_with_selected_papers(selected_choices, data_file, refs_text, progress=gr.Progress(track_tqdm=True)):
     """学者确认选中文献后，恢复工作流，AI 仅深度处理所选核心文献"""
     global current_active_task_id
     if not current_active_task_id:
@@ -404,10 +489,10 @@ def resume_research_with_selected_papers(selected_choices, data_file, refs_text)
     if not selected_papers:
         selected_papers = candidate_papers[:6] if candidate_papers else []
 
-    return continue_research_flow(state.task_id, selected_papers, data_file, refs_text)
+    return continue_research_flow(state.task_id, selected_papers, data_file, refs_text, progress=progress)
 
 
-def continue_research_flow(task_id, selected_papers, data_file, refs_text):
+def continue_research_flow(task_id, selected_papers, data_file, refs_text, progress=gr.Progress(track_tqdm=True)):
     state = engine.load_checkpoint(task_id)
     if not state:
         return "", gr.update(visible=False), gr.update(visible=False), "", [], "", "", [], "", ""
@@ -420,6 +505,7 @@ def continue_research_flow(task_id, selected_papers, data_file, refs_text):
     query = state.params.get("query", "通用智能体科研自动化")
 
     # 2. 深度要素抽取 (仅针对精选核心文献，100% 纯正学术中文)
+    progress(0.45, desc=f"✦ [2/5] 要素抽取：正在深度解析已选 {len(selected_papers)} 篇核心文献机制与实验...")
     state.current_step = WorkflowStep.FEATURE_EXTRACTION
     features = rev_agent.batch_extract(selected_papers, topic=query)
     state.data["extracted_features"] = [f.model_dump() for f in features]
@@ -427,6 +513,7 @@ def continue_research_flow(task_id, selected_papers, data_file, refs_text):
     engine.save_checkpoint(state)
 
     # 3. 新论文文献综述大纲规划 (基于核心文献证据与领域逻辑)
+    progress(0.65, desc="✦ [3/5] 大纲规划：正在推演新论文专属文献综述大纲...")
     state.current_step = WorkflowStep.OUTLINE_GENERATION
     outline_md = rev_agent.generate_review_outline(query, features)
     state.data["review_outline"] = outline_md
@@ -434,6 +521,7 @@ def continue_research_flow(task_id, selected_papers, data_file, refs_text):
     engine.save_checkpoint(state)
 
     # 4. 综述初稿框架合成与防幻觉校验
+    progress(0.80, desc="✦ [4/5] 综述初稿：正在合成综述长文初稿并执行 Citation Validator 双向核验...")
     state.current_step = WorkflowStep.REVIEW_SYNTHESIS
     review_draft = rev_agent.generate_review_draft(
         topic=query,
@@ -445,6 +533,7 @@ def continue_research_flow(task_id, selected_papers, data_file, refs_text):
     engine.save_checkpoint(state)
 
     # 5. 实验数据统计
+    progress(0.92, desc="✦ [5/5] 实验数据：正在进行实验数据收敛性统计、Tukey IQR 离群点审计与科研制图...")
     state.current_step = WorkflowStep.DATA_ANALYSIS
     csv_source = data_file.name if data_file is not None and hasattr(data_file, "name") else get_sample_experiment_csv()
     data_res = data_agent.run(csv_source, task_id=state.task_id)
@@ -454,6 +543,7 @@ def continue_research_flow(task_id, selected_papers, data_file, refs_text):
     engine.save_checkpoint(state)
 
     # 6. 参考文献国标排版
+    progress(0.98, desc="✦ [6/5] 国标排版：正在执行参考文献 GB/T 7714-2015 格式校对与规范纠错...")
     state.current_step = WorkflowStep.REFERENCE_FORMAT
     if refs_text and refs_text.strip():
         ref_source = refs_text.strip()
@@ -475,6 +565,7 @@ def continue_research_flow(task_id, selected_papers, data_file, refs_text):
     state.completed_steps.append("reference_format")
 
     # 完成
+    progress(1.00, desc="✦ [交付完毕] UniScholar 通用智能体科研全流程成果已成功交付！")
     state.status = WorkflowStatus.COMPLETED
     state.current_step = WorkflowStep.COMPLETED
     engine.save_checkpoint(state)
@@ -906,6 +997,32 @@ def get_claude_css():
         margin: 12px 0 !important;
         border-radius: 0 8px 8px 0 !important;
         color: #59534B !important;
+    }
+
+    /* 14. 极具人文科研质感的流光进度条动效与呼吸指示器 */
+    @keyframes progressShimmer {
+        0% { background-position: -200% 0; }
+        100% { background-position: 200% 0; }
+    }
+    @keyframes pulseGlow {
+        0% { transform: scale(0.92); box-shadow: 0 0 0 0 rgba(194, 94, 62, 0.45); }
+        70% { transform: scale(1); box-shadow: 0 0 0 7px rgba(194, 94, 62, 0); }
+        100% { transform: scale(0.92); box-shadow: 0 0 0 0 rgba(194, 94, 62, 0); }
+    }
+    @keyframes pulseAmber {
+        0% { transform: scale(0.92); box-shadow: 0 0 0 0 rgba(217, 119, 6, 0.45); }
+        70% { transform: scale(1); box-shadow: 0 0 0 7px rgba(217, 119, 6, 0); }
+        100% { transform: scale(0.92); box-shadow: 0 0 0 0 rgba(217, 119, 6, 0); }
+    }
+    .claude-progress-shimmer {
+        background-size: 200% 100% !important;
+        animation: progressShimmer 2.8s ease-in-out infinite !important;
+    }
+    .claude-pulse-active {
+        animation: pulseGlow 1.8s infinite !important;
+    }
+    .claude-pulse-paused {
+        animation: pulseAmber 1.8s infinite !important;
     }
 
     footer { display: none !important; }
