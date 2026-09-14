@@ -8,7 +8,9 @@ UniScholar (联智学者) - 极简 Claude 暖雅学术科研工作台
 import json
 import logging
 import os
+import re
 import sys
+from typing import Any, Dict, List, Optional
 
 # 避免控制台乱码
 if hasattr(sys.stdout, "reconfigure"):
@@ -16,6 +18,11 @@ if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
     except Exception:
         pass
+
+# 确保项目根目录在 sys.path 中
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
 
 import gradio as gr
 
@@ -47,10 +54,10 @@ def render_claude_pipeline(current_step: str, status: str) -> str:
     """生成具有 Claude 质感的优雅工作流 Pipeline 进度卡片"""
     steps = [
         ("0. 学术意图规划", WorkflowStep.INTENT_FORMULATION.value, "✦"),
-        ("1. 文献递归检索", WorkflowStep.LITERATURE_RETRIEVAL.value, "✦"),
+        ("1. 候选文献召回 (HITL)", WorkflowStep.LITERATURE_RETRIEVAL.value, "✦"),
         ("2. 核心要素抽取", WorkflowStep.FEATURE_EXTRACTION.value, "✦"),
         ("3. 综述大纲规划", WorkflowStep.OUTLINE_GENERATION.value, "✦"),
-        ("4. 成果合成与绘图", WorkflowStep.COMPLETED.value, "✦"),
+        ("4. 成果合成与交付", WorkflowStep.COMPLETED.value, "✦"),
     ]
 
     step_keys = [s[1] for s in steps]
@@ -66,9 +73,9 @@ def render_claude_pipeline(current_step: str, status: str) -> str:
             tag = "已完成 ✓"
         elif idx == cur_idx:
             if status == WorkflowStatus.PAUSED.value:
-                # 暖杏琥珀色 (Amber Gold - 待人工确认)
+                # 暖杏琥珀色 (Amber Gold - 待学者点选)
                 style = "background: #FEF8EC; color: #A06400; border: 1.5px solid #F5DAA5; box-shadow: 0 0 10px rgba(160,100,0,0.12);"
-                tag = "待人工确认 ⏸️"
+                tag = "待学者点选 ⏸️"
             elif status == WorkflowStatus.RUNNING.value:
                 # 克劳德陶土珊瑚色 (Claude Terracotta - 进行中)
                 style = "background: #FDF3EE; color: #C25E3E; border: 1.5px solid #F5C6B5; box-shadow: 0 0 12px rgba(194,94,62,0.15);"
@@ -96,7 +103,7 @@ def render_claude_pipeline(current_step: str, status: str) -> str:
     status_pill = {
         WorkflowStatus.IDLE.value: '<span style="color: #79746C;">● 智能体就绪 (Ready)</span>',
         WorkflowStatus.RUNNING.value: '<span style="color: #C25E3E; font-weight: 600;">● 自主编排执行中 (Running)</span>',
-        WorkflowStatus.PAUSED.value: '<span style="color: #A06400; font-weight: 600;">● 检查点已暂停 · 等待确认 (Paused)</span>',
+        WorkflowStatus.PAUSED.value: '<span style="color: #A06400; font-weight: 600;">● 候选文献池挂起 · 等待学者精选 (HITL Paused)</span>',
         WorkflowStatus.COMPLETED.value: '<span style="color: #2D6A3E; font-weight: 600;">● 全流程已交付 (Completed)</span>',
     }.get(status, '<span style="color: #79746C;">就绪</span>')
 
@@ -104,13 +111,78 @@ def render_claude_pipeline(current_step: str, status: str) -> str:
     <div style="background: #FFFFFF; border: 1px solid #E8E3DA; border-radius: 14px; padding: 14px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); margin-bottom: 20px;">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <div style="font-size: 13px; font-weight: 600; color: #2B2824; display: flex; align-items: center; gap: 8px;">
-                <span>✦ 通用智能体工作流执行管线 (StateGraph DAG)</span>
+                <span>✦ 通用智能体工作流执行管线 (StateGraph DAG Pipeline)</span>
                 <span style="font-size: 11px; background: #F4F1EA; color: #6E685E; padding: 2px 8px; border-radius: 12px;">联通元景万悟标准</span>
             </div>
             <div style="font-size: 12px; font-family: inherit;">{status_pill}</div>
         </div>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             {joined_nodes}
+        </div>
+    </div>
+    """
+
+
+def render_funnel_svg(candidate_count: int = 20, selected_count: int = 6) -> str:
+    """生成具有 Claude 质感的工作流漏斗连线流 (DAG Funnel Flow) SVG"""
+    pct = int((selected_count / max(1, candidate_count)) * 100) if candidate_count else 0
+    return f"""
+    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; min-height: 380px; padding: 14px; background: #FAF9F5; border-radius: 14px; border: 1.5px solid #ECE7DE; box-shadow: inset 0 1px 4px rgba(0,0,0,0.02);">
+        <div style="font-size: 12px; font-weight: 700; color: #8C533E; margin-bottom: 8px; letter-spacing: 0.5px; text-transform: uppercase;">
+            ✦ 智能收敛连线流 (Funnel Flow)
+        </div>
+        <svg width="220" height="280" viewBox="0 0 220 280" fill="none" xmlns="http://www.w3.org/2000/svg" style="max-width: 100%;">
+            <defs>
+                <linearGradient id="terracottaGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#E27D60" />
+                    <stop offset="100%" stop-color="#C25E3E" />
+                </linearGradient>
+                <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#F5B041" />
+                    <stop offset="100%" stop-color="#D97706" />
+                </linearGradient>
+                <linearGradient id="sageGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#52B788" />
+                    <stop offset="100%" stop-color="#2D6A3E" />
+                </linearGradient>
+                <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                    <feGaussianBlur stdDeviation="3" result="blur" />
+                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                </filter>
+            </defs>
+
+            <!-- 顶端候选池节点 -->
+            <rect x="25" y="12" width="170" height="42" rx="8" fill="#FFFFFF" stroke="#E2DDD5" stroke-width="1.5"/>
+            <circle cx="45" cy="33" r="11" fill="#FDF3EE" stroke="#CC785C" stroke-width="1.5"/>
+            <text x="45" y="37" text-anchor="middle" font-size="11" font-weight="bold" fill="#CC785C">{candidate_count}</text>
+            <text x="65" y="29" font-size="11.5" font-weight="600" fill="#2D2A26">候选文献初筛池</text>
+            <text x="65" y="44" font-size="9.5" fill="#79746C">多源检索与递归语义打分</text>
+
+            <!-- 汇聚连线流 -->
+            <path d="M 45 54 C 45 95, 95 105, 110 128" stroke="#CC785C" stroke-width="2.5" stroke-dasharray="4,3" fill="none" class="pulse-flow"/>
+            <path d="M 175 54 C 175 95, 125 105, 110 128" stroke="#CC785C" stroke-width="2.5" stroke-dasharray="4,3" fill="none" class="pulse-flow"/>
+            <path d="M 110 54 L 110 128" stroke="#E2DDD5" stroke-width="1.5" stroke-dasharray="2,2" fill="none"/>
+
+            <!-- 漏斗漏斗颈部：学者人在回路核心节点 -->
+            <polygon points="65,102 155,102 132,148 88,148" fill="#FDF3EE" stroke="#E27D60" stroke-width="1.2" opacity="0.65"/>
+            <circle cx="110" cy="138" r="21" fill="url(#amberGrad)" filter="url(#glow)"/>
+            <text x="110" y="134" text-anchor="middle" font-size="9" font-weight="bold" fill="#FFFFFF">HITL</text>
+            <text x="110" y="146" text-anchor="middle" font-size="8" font-weight="500" fill="#FFFFFF">学者精选</text>
+
+            <!-- 向下发散流线 -->
+            <path d="M 110 160 L 110 205" stroke="url(#sageGrad)" stroke-width="3" stroke-dasharray="5,3" fill="none" class="pulse-flow"/>
+            <polygon points="106,206 114,206 110,212" fill="#2D6A3E"/>
+
+            <!-- 底部核心研读池节点 -->
+            <rect x="25" y="218" width="170" height="48" rx="8" fill="#F0F5F0" stroke="#D1E3D3" stroke-width="1.5"/>
+            <circle cx="45" cy="242" r="12" fill="url(#sageGrad)"/>
+            <text x="45" y="246" text-anchor="middle" font-size="11" font-weight="bold" fill="#FFFFFF">{selected_count}</text>
+            <text x="66" y="238" font-size="12" font-weight="700" fill="#2D6A3E">核心研读文献池</text>
+            <text x="66" y="253" font-size="9.5" fill="#588157">精选收敛率: {pct}% (深度研判)</text>
+        </svg>
+        <div style="font-size: 11.5px; color: #79746C; text-align: center; line-height: 1.5; margin-top: 6px;">
+            <span>初筛候选: <b>{candidate_count}</b> 篇</span> ➔ <span>精选核心: <b>{selected_count}</b> 篇</span><br/>
+            <span style="font-size: 10.5px; color: #9A4122;">仅对已选文献启动深度要素抽取与大纲规划</span>
         </div>
     </div>
     """
@@ -136,18 +208,18 @@ def format_features_markdown(features):
         return "*暂无抽取要素*"
     lines = []
     for idx, f in enumerate(features, 1):
-        lines.append(f"#### 📄 文献 {idx}：《{f.get('title', '未知文献')}》({f.get('publication_year', 2024)})")
+        lines.append(f"#### 📄 核心文献 {idx}：《{f.get('title', '未知文献')}》({f.get('publication_year', 2024)})")
         lines.append(f"- **研究背景与动机**：{f.get('background', '未注明')}")
-        inno = '; '.join(f.get('core_innovations', [])) if isinstance(f.get('core_innovations'), list) else str(f.get('core_innovations', '未注明'))
-        lines.append(f"- **核心创新突破**：{inno}")
-        lines.append(f"- **研究方法与技术方案**：{f.get('methodology', '未注明')}")
-        conc = '; '.join(f.get('main_conclusions', [])) if isinstance(f.get('main_conclusions'), list) else str(f.get('main_conclusions', '未注明'))
-        lines.append(f"- **主要研究结论**：{conc}")
+        inno = '；'.join(f.get('core_innovations', [])) if isinstance(f.get('core_innovations'), list) else str(f.get('core_innovations', '未注明'))
+        lines.append(f"- **核心创新机制**：{inno}")
+        lines.append(f"- **研究方法与技术范式**：{f.get('methodology', '未注明')}")
+        conc = '；'.join(f.get('main_conclusions', [])) if isinstance(f.get('main_conclusions'), list) else str(f.get('main_conclusions', '未注明'))
+        lines.append(f"- **主要实证结论**：{conc}")
         lines.append("")
     return "\n".join(lines)
 
 
-# ==================== 工作流事件调度 ====================
+# ==================== 工作流事件调度 (Decision 1 & 3: 单阶段人在回路漏斗) ====================
 def start_research_flow(query, keywords_str, years, max_papers, pause_hitl, data_file, refs_text):
     global current_active_task_id
 
@@ -155,89 +227,218 @@ def start_research_flow(query, keywords_str, years, max_papers, pause_hitl, data
         query = "通用智能体在高校科研流程中的自动化应用"
 
     keywords = [k.strip() for k in keywords_str.split(",") if k.strip()]
+    candidate_target = max(20, int(max_papers))
+
     state = engine.create_task({
         "query": query,
         "keywords": keywords,
         "years": int(years),
-        "max_papers": int(max_papers),
+        "max_papers": candidate_target,
     })
     current_active_task_id = state.task_id
 
     # 0. 意图理解与规划 (LLM Think First)
     state.status = WorkflowStatus.RUNNING
     state.current_step = WorkflowStep.INTENT_FORMULATION
-    plan = intent_agent.formulate(query=query, user_keywords=keywords, years=int(years), max_papers=int(max_papers))
+    plan = intent_agent.formulate(query=query, user_keywords=keywords, years=int(years), max_papers=candidate_target)
     state.data["intent_plan"] = plan.model_dump()
     state.completed_steps.append("intent_formulation")
     engine.save_checkpoint(state)
 
-    # 1. 检索 (使用规划的英文检索词与高敏感度词表)
+    # 1. 跨源检索候选文献池 (~20篇)
     state.current_step = WorkflowStep.LITERATURE_RETRIEVAL
     lit_res = lit_agent.run(
         query=query,
         keywords=keywords,
         years=int(years),
-        max_papers=int(max_papers),
+        max_papers=candidate_target,
         search_queries=plan.search_queries,
         filter_keywords=plan.filter_keywords,
     )
-    state.data["literature_pool"] = lit_res["papers"]
+    candidate_papers = lit_res["papers"]
+    state.data["candidate_pool"] = candidate_papers
+    state.data["literature_pool"] = candidate_papers
     state.completed_steps.append("literature_retrieval")
     engine.save_checkpoint(state)
 
-    table_rows = format_literature_table(lit_res["papers"])
+    # 格式化候选文献选项与情报详情表
+    choices = [
+        f"[{i+1}] {p['title']} ({p.get('publication_year', 2024)}, {p.get('source', 'OpenAlex')}) | 相关度: {int(float(p.get('relevance_score', 0.8)) * 100)}%"
+        for i, p in enumerate(candidate_papers)
+    ]
+    default_selected = choices[:6] if len(choices) >= 6 else choices
+    candidate_table_rows = [
+        [i+1, p['title'], p.get('chinese_summary', '围绕该课题开展的学术实证研究'), p.get('publication_year', 2024), p.get('source', 'OpenAlex'), f"{int(float(p.get('relevance_score', 0.8)) * 100)}%"]
+        for i, p in enumerate(candidate_papers)
+    ]
+    preview_rows = [
+        [i+1, p['title'], p.get('publication_year', 2024), f"{int(float(p.get('relevance_score', 0.8)) * 100)}%"]
+        for i, p in enumerate(candidate_papers[:len(default_selected)])
+    ]
 
-    # 2. 抽取 (包含领域自适应机制)
+    funnel_svg = render_funnel_svg(len(candidate_papers), len(default_selected))
+    counter_md = f"### 🎯 已选核心文献池: **{len(default_selected)}** / {len(candidate_papers)} 篇\n> AI 将仅针对您选中的核心文献展开深度要素抽取、新论文综述大纲规划与初稿长文合成。"
+
+    if pause_hitl:
+        engine.pause_task(state.task_id, reason="人在回路：已检索20篇候选文献池，等待学者挑选核心文献")
+        state = engine.load_checkpoint(state.task_id)
+        pipeline_html = render_claude_pipeline(state.current_step.value, state.status.value)
+        return (
+            pipeline_html,
+            gr.update(visible=True),                # 展开人在回路漏斗卡片
+            gr.update(choices=choices, value=default_selected), # 填充候选文献复选框
+            candidate_table_rows,                   # 候选文献情报详情表
+            funnel_svg,                             # 中间漏斗 SVG 连线流
+            counter_md,                             # 右侧计数状态
+            preview_rows,                           # 右侧已选文献预览
+            gr.update(visible=False),               # 成果画布保持隐藏
+            "",                                     # synthesis_deliverable_md
+            [],                                     # result_papers_table
+            "",                                     # features_summary_md
+            "",                                     # data_analysis_md
+            [],                                     # charts_gallery
+            "",                                     # formatted_citations_box
+            "",                                     # workflow_meta_json
+        )
+
+    # 若关闭人在回路，默认直接使用推荐 Top 6 文献平滑续跑
+    selected_papers = candidate_papers[:6]
+    res = continue_research_flow(state.task_id, selected_papers, data_file, refs_text)
+    return (
+        res[0],
+        gr.update(visible=False),
+        gr.update(choices=choices, value=default_selected),
+        candidate_table_rows,
+        funnel_svg,
+        counter_md,
+        preview_rows,
+        res[2],
+        res[3],
+        res[4],
+        res[5],
+        res[6],
+        res[7],
+        res[8],
+        res[9],
+    )
+
+
+def update_candidate_selection_view(selected_choices):
+    """当学者在复选框中勾选/取消时，动态更新中间漏斗与右侧精选预览"""
+    global current_active_task_id
+    candidate_papers = []
+    if current_active_task_id:
+        state = engine.load_checkpoint(current_active_task_id)
+        if state:
+            candidate_papers = state.data.get("candidate_pool", [])
+
+    sel_indices = []
+    for c in selected_choices or []:
+        m = re.match(r"^\[(\d+)\]", str(c))
+        if m:
+            sel_indices.append(int(m.group(1)) - 1)
+
+    selected_papers = [candidate_papers[i] for i in sel_indices if 0 <= i < len(candidate_papers)]
+    sel_count = len(selected_papers)
+    cand_count = len(candidate_papers) if candidate_papers else 20
+
+    funnel_svg = render_funnel_svg(candidate_count=cand_count, selected_count=sel_count)
+    counter_md = f"### 🎯 已选核心文献池: **{sel_count}** / {cand_count} 篇\n> AI 将仅针对您选中的核心文献展开深度要素抽取、新论文综述大纲规划与初稿长文合成。"
+    preview_rows = [
+        [idx, p.get("title", ""), p.get("publication_year", 2024), f"{int(float(p.get('relevance_score', 0.8)) * 100)}%"]
+        for idx, p in enumerate(selected_papers, 1)
+    ]
+    return funnel_svg, counter_md, preview_rows
+
+
+def select_all_candidates_action():
+    global current_active_task_id
+    if not current_active_task_id:
+        return []
+    state = engine.load_checkpoint(current_active_task_id)
+    if not state:
+        return []
+    papers = state.data.get("candidate_pool", [])
+    return [
+        f"[{i+1}] {p['title']} ({p.get('publication_year', 2024)}, {p.get('source', 'OpenAlex')}) | 相关度: {int(float(p.get('relevance_score', 0.8)) * 100)}%"
+        for i, p in enumerate(papers)
+    ]
+
+
+def select_top6_candidates_action():
+    global current_active_task_id
+    if not current_active_task_id:
+        return []
+    state = engine.load_checkpoint(current_active_task_id)
+    if not state:
+        return []
+    papers = state.data.get("candidate_pool", [])
+    return [
+        f"[{i+1}] {p['title']} ({p.get('publication_year', 2024)}, {p.get('source', 'OpenAlex')}) | 相关度: {int(float(p.get('relevance_score', 0.8)) * 100)}%"
+        for i, p in enumerate(papers[:6])
+    ]
+
+
+def clear_candidate_selection_action():
+    return []
+
+
+def resume_research_with_selected_papers(selected_choices, data_file, refs_text):
+    """学者确认选中文献后，恢复工作流，AI 仅深度处理所选核心文献"""
+    global current_active_task_id
+    if not current_active_task_id:
+        return "", gr.update(visible=False), gr.update(visible=False), "", [], "", "", [], "", ""
+
+    state = engine.load_checkpoint(current_active_task_id)
+    if not state:
+        return "", gr.update(visible=False), gr.update(visible=False), "", [], "", "", [], "", ""
+
+    candidate_papers = state.data.get("candidate_pool", [])
+    sel_indices = []
+    for c in selected_choices or []:
+        m = re.match(r"^\[(\d+)\]", str(c))
+        if m:
+            sel_indices.append(int(m.group(1)) - 1)
+
+    selected_papers = [candidate_papers[i] for i in sel_indices if 0 <= i < len(candidate_papers)]
+    if not selected_papers:
+        selected_papers = candidate_papers[:6] if candidate_papers else []
+
+    return continue_research_flow(state.task_id, selected_papers, data_file, refs_text)
+
+
+def continue_research_flow(task_id, selected_papers, data_file, refs_text):
+    state = engine.load_checkpoint(task_id)
+    if not state:
+        return "", gr.update(visible=False), gr.update(visible=False), "", [], "", "", [], "", ""
+
+    state.data["selected_papers"] = selected_papers
+    state.data["literature_pool"] = selected_papers
+    state.status = WorkflowStatus.RUNNING
+    engine.save_checkpoint(state)
+
+    query = state.params.get("query", "通用智能体科研自动化")
+
+    # 2. 深度要素抽取 (仅针对精选核心文献，100% 纯正学术中文)
     state.current_step = WorkflowStep.FEATURE_EXTRACTION
-    features = rev_agent.batch_extract(lit_res["papers"], topic=query)
+    features = rev_agent.batch_extract(selected_papers, topic=query)
     state.data["extracted_features"] = [f.model_dump() for f in features]
     state.completed_steps.append("feature_extraction")
     engine.save_checkpoint(state)
 
-    # 3. 大纲 (领域专属规划)
+    # 3. 新论文文献综述大纲规划 (基于核心文献证据与领域逻辑)
     state.current_step = WorkflowStep.OUTLINE_GENERATION
     outline_md = rev_agent.generate_review_outline(query, features)
     state.data["review_outline"] = outline_md
     state.completed_steps.append("outline_generation")
     engine.save_checkpoint(state)
 
-    if pause_hitl:
-        engine.pause_task(state.task_id, reason="人在回路：大纲规划完成，等待作者审核编辑")
-        state = engine.load_checkpoint(state.task_id)
-        pipeline_html = render_claude_pipeline(state.current_step.value, state.status.value)
-        return (
-            pipeline_html,
-            gr.update(visible=True),   # 唤醒人在回路编辑卡片
-            table_rows,                # 填入精选文献池表格
-            outline_md,                # 填入生成的大纲初稿
-            gr.update(visible=False),  # 成果画布保持隐藏
-            "",
-            [],
-            "",
-            "",
-            [],
-            "",
-            "",
-        )
-
-    return continue_research_flow(state.task_id, outline_md, data_file, refs_text)
-
-
-def continue_research_flow(task_id, approved_outline, data_file, refs_text):
-    state = engine.load_checkpoint(task_id)
-    if not state:
-        return "", gr.update(visible=False), [], "", gr.update(visible=False), "", [], "", "", [], "", ""
-
-    state.data["review_outline"] = approved_outline
-    state.status = WorkflowStatus.RUNNING
-
-    # 4. 综述初稿合成
+    # 4. 综述初稿框架合成与防幻觉校验
     state.current_step = WorkflowStep.REVIEW_SYNTHESIS
-    features_objs = [PaperFeature(**f) for f in state.data.get("extracted_features", [])]
     review_draft = rev_agent.generate_review_draft(
-        topic=state.params.get("query", "科研综述"),
-        outline=approved_outline,
-        features=features_objs,
+        topic=query,
+        outline=outline_md,
+        features=features,
     )
     state.data["review_draft"] = review_draft
     state.completed_steps.append("review_synthesis")
@@ -256,10 +457,9 @@ def continue_research_flow(task_id, approved_outline, data_file, refs_text):
     state.current_step = WorkflowStep.REFERENCE_FORMAT
     if refs_text and refs_text.strip():
         ref_source = refs_text.strip()
-    elif state.data.get("literature_pool"):
-        pool = state.data.get("literature_pool", [])
+    elif selected_papers:
         ref_lines = []
-        for idx, p in enumerate(pool[:15], 1):
+        for idx, p in enumerate(selected_papers, 1):
             authors = p.get("authors", [])
             auth_str = ", ".join(authors) if authors else "佚名"
             title = p.get("title", "未命名文献")
@@ -279,19 +479,34 @@ def continue_research_flow(task_id, approved_outline, data_file, refs_text):
     state.current_step = WorkflowStep.COMPLETED
     engine.save_checkpoint(state)
 
-    table_rows = format_literature_table(state.data.get("literature_pool", []))
+    table_rows = format_literature_table(selected_papers)
     features_md = format_features_markdown(state.data.get("extracted_features", []))
     pipeline_html = render_claude_pipeline("completed", WorkflowStatus.COMPLETED.value)
     yuanjing_config = json.dumps(engine.export_yuanjing_workflow_config(), ensure_ascii=False, indent=2)
 
+    # 组合交付物成果大画卷：契合赛题第二大核心功能（文献综述大纲规划与初稿框架）
+    synthesis_deliverable_md = f"""# 📑 成果交付：基于核心文献规划的文献综述大纲与初稿框架
+
+> **赛题命题对应**：中国联通省级分公司赛道（功能二）——基于通用智能体结构化逻辑自动生成文献综述大纲与初稿框架。  
+> **精选文献支持**：本成果由学者在回路断点精选的 **{len(selected_papers)}** 篇核心文献驱动，正文全部引文均经 UniScholar Citation Validator 真实文献双向白名单交叉验证。
+
+---
+
+## ✦ 一、 新论文文献综述大纲规划 (Structured Research Outline)
+{outline_md}
+
+---
+
+## ✦ 二、 学术文献综述初稿框架全文 (Scholarly Review & Synthesis Draft)
+{review_draft}
+"""
+
     return (
         pipeline_html,
-        gr.update(visible=False),  # 隐藏人在回路卡片
-        table_rows,                # 保留文献表格
-        approved_outline,
+        gr.update(visible=False),  # 隐藏人在回路漏斗卡片
         gr.update(visible=True),   # 展开成果画布
-        state.data.get("review_draft", ""),
-        table_rows,                # 成果画布中的文献表格
+        synthesis_deliverable_md,  # 综述大纲与长文初稿
+        table_rows,                # 精选核心文献表格
         features_md,               # 抽取要素 Markdown
         data_res["report_markdown"],# 数据分析报告
         data_res["charts"],        # 实验图表
@@ -385,13 +600,13 @@ def get_claude_theme():
         block_title_text_color="#2D2A26",
         block_title_text_color_dark="#2D2A26",
 
-        # 字体与排版颜色 (柔和炭黑，非纯黑刺眼)
+        # 字体与排版颜色
         body_text_color="#2D2A26",
         body_text_color_dark="#2D2A26",
         body_text_color_subdued="#79746C",
         body_text_color_subdued_dark="#79746C",
 
-        # 输入控件 (纯白底、暖米边框、陶土色聚焦环)
+        # 输入控件
         input_background_fill="#FFFFFF",
         input_background_fill_dark="#FFFFFF",
         input_border_color="#E2DDD5",
@@ -479,7 +694,7 @@ def get_claude_css():
     body, .gradio-container {
         background-color: #FAF9F5 !important;
         color: #2D2A26 !important;
-        max-width: 1260px !important;
+        max-width: 1300px !important;
         margin: 0 auto !important;
         padding-top: 24px !important;
         padding-bottom: 60px !important;
@@ -549,13 +764,13 @@ def get_claude_css():
         box-shadow: 0 6px 16px rgba(204,120,92,0.35) !important;
     }
 
-    /* 7. 人在回路温润琥珀卡片 */
+    /* 7. 人在回路漏斗交互卡片 */
     .claude-hitl-box {
         background: #FEFBF4 !important;
         border: 1.5px solid #EBDCC2 !important;
-        border-radius: 14px !important;
-        padding: 20px !important;
-        box-shadow: 0 4px 16px rgba(160,100,0,0.06) !important;
+        border-radius: 16px !important;
+        padding: 22px !important;
+        box-shadow: 0 6px 24px rgba(160,100,0,0.07) !important;
         margin-bottom: 24px !important;
     }
     .claude-resume-btn {
@@ -563,10 +778,14 @@ def get_claude_css():
         color: #FFFFFF !important;
         border-radius: 10px !important;
         font-weight: 600 !important;
-        box-shadow: 0 4px 12px rgba(204,120,92,0.25) !important;
+        box-shadow: 0 4px 14px rgba(204,120,92,0.3) !important;
+        width: 100% !important;
+        padding: 12px 20px !important;
+        font-size: 15px !important;
     }
     .claude-resume-btn:hover {
         background: #B8654B !important;
+        transform: translateY(-1px) !important;
     }
 
     /* 8. 成果画布 */
@@ -595,7 +814,24 @@ def get_claude_css():
         box-shadow: 0 0 0 1.5px rgba(204,120,92,0.25) !important;
     }
 
-    /* 10. Markdown 学术排版与代码块高质感渲染 (彻底杜绝黑底方块) */
+    /* 10. 漏斗动效与流线样式 */
+    @keyframes pulseFlow {
+        from { stroke-dashoffset: 20; }
+        to { stroke-dashoffset: 0; }
+    }
+    .pulse-flow {
+        animation: pulseFlow 1.6s linear infinite;
+    }
+    .claude-checkbox-group label {
+        padding: 6px 10px !important;
+        border-radius: 8px !important;
+        transition: background 0.15s ease !important;
+    }
+    .claude-checkbox-group label:hover {
+        background: #FAF6EF !important;
+    }
+
+    /* 11. Markdown 学术排版与代码块高质感渲染 */
     .prose, .markdown {
         color: #2D2A26 !important;
         line-height: 1.75 !important;
@@ -639,14 +875,14 @@ def get_claude_css():
         background-color: #FAF8F5 !important;
     }
 
-    /* 行内代码与引用标签 (解决黑底方块Bug，赋予暖卡其学术高亮) */
+    /* 行内代码与引用标签 */
     code, pre, .prose code, .markdown code, table code, span code {
         background-color: #F4F0E8 !important;
         color: #9A4122 !important;
         padding: 2px 6px !important;
         border-radius: 5px !important;
         font-size: 0.88em !important;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace !important;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace !important;
         border: 1px solid #E8DFD1 !important;
         font-weight: 500 !important;
     }
@@ -672,7 +908,6 @@ def get_claude_css():
         color: #59534B !important;
     }
 
-    /* 11. 隐藏无用的 Gradio 底部 */
     footer { display: none !important; }
     """
 
@@ -741,7 +976,6 @@ def build_ui():
     claude_css = get_claude_css()
 
     with gr.Blocks(title="UniScholar - 通用AI科研智能体") as demo:
-        # DOM 内联注入样式表，确保即使外部资源加载延迟，界面也绝无黑白混杂
         gr.HTML(f"<style>{claude_css}</style>")
 
         gr.HTML("""
@@ -755,7 +989,7 @@ def build_ui():
             <div style="font-size: 12px; color: #8E877D; display: flex; align-items: center; gap: 10px;">
                 <span>引擎状态：<b style="color: #2D6A3E;">就绪 (Ready)</b></span>
                 <span style="color: #E2DDD5;">•</span>
-                <span>工作流标准：<b>元景万悟 v2.0</b></span>
+                <span>工作流标准：<b>元景万悟 v2.0 (DAG)</b></span>
             </div>
         </div>
         """)
@@ -825,15 +1059,14 @@ def build_ui():
                 with gr.Column(scale=3):
                     years_slider = gr.Slider(minimum=1, maximum=10, value=3, step=1, label="文献年份跨度 (近N年)")
                 with gr.Column(scale=3):
-                    papers_slider = gr.Slider(minimum=5, maximum=40, value=15, step=5, label="文献精筛池上限")
+                    papers_slider = gr.Slider(minimum=15, maximum=40, value=20, step=5, label="初筛候选文献池规模 (~20篇)")
 
             with gr.Row():
                 pause_hitl_checkbox = gr.Checkbox(
-                    label="✦ 开启人在回路 (HITL) 断点审核：在大纲规划完成后自动暂停，供学者审阅润色后再继续合成",
+                    label="✦ 开启人在回路 (HITL) 漏斗遴选：在初筛召回 ~20 篇候选文献后自动暂停，供学者勾选核心文献再继续深度研讨",
                     value=True,
                 )
 
-            # 折叠高级选项
             with gr.Accordion("附加实验数据与参考文献样本 (可选，点击展开)", open=False):
                 with gr.Row():
                     with gr.Column(scale=6):
@@ -845,31 +1078,61 @@ def build_ui():
                             lines=3,
                         )
 
-        # ==================== 2. 人在回路温润审核卡片 (仅断点时显示) ====================
+        # ==================== 2. 人在回路漏斗连线流卡片 (Decision 1 & 3) ====================
         with gr.Group(visible=False, elem_classes=["claude-hitl-box"]) as hitl_card:
             gr.HTML("""
-            <div style="font-weight: 600; font-size: 15px; color: #A06400; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
-                <span>✦ 工作流已在检查点挂起 (Human-in-the-Loop Checkpoint)</span>
+            <div style="font-weight: 700; font-size: 16px; color: #A06400; margin-bottom: 4px; display: flex; align-items: center; gap: 8px;">
+                <span>✦ 工作流已在候选文献断点挂起 (Human-in-the-Loop Checkpoint)</span>
             </div>
-            <div style="font-size: 13px; color: #6E5325; margin-bottom: 12px; line-height: 1.5;">
-                智能体已完成多源文献检索与实体去重，为您精筛出<b>高质量学术文献池</b>，并规划了<b>综述大纲初稿</b>。请学者审阅文献池并在线润色大纲，确认无误后点击右侧按钮无损续跑！
+            <div style="font-size: 13.5px; color: #6E5325; margin-bottom: 16px; line-height: 1.6;">
+                智能体已完成学术意图规划与多源文献召回，为您构建了包含 <b>约 20 篇相关前沿论文的初筛池</b>。请学者审阅并勾选最想要精读的 <b>5-8 篇核心论文</b>。确认后，AI 将仅针对选中文献展开深度微观特征提取、新论文大纲规划与高水平文献综述初稿框架合成！
             </div>
             """)
 
-            # 呈现精准文献池
-            hitl_papers_table = gr.Dataframe(
-                headers=["序号", "论文标题", "年份", "被引频次", "相关度得分", "数据源"],
-                datatype=["number", "str", "number", "number", "str", "str"],
-                label="📚 智能体精筛学术文献池 (Literature Pool)",
-                wrap=True,
-            )
-
-            hitl_outline_editor = gr.Textbox(label="💡 文献综述大纲规划初稿 (支持在线编辑增删章节)", lines=8)
+            # 漏斗三列连线流布局
             with gr.Row():
-                gr.Markdown("*(提示：修改后的内容将作为最新检查点保存，下游节点将基于您的修改继续合成正文)*")
-                resume_flow_btn = gr.Button("确认大纲并生成最终成果画布 ➔", variant="primary", elem_classes=["claude-resume-btn"], size="lg")
+                # 左侧：20篇候选文献池多选与情报表
+                with gr.Column(scale=6):
+                    gr.Markdown("### 📚 1. 初筛候选文献池 (Candidate Pool)\n*请在下方勾选拟重点研讨的核心文献（支持快捷一键精选）：*")
+                    hitl_candidate_checkboxes = gr.CheckboxGroup(
+                        choices=[],
+                        value=[],
+                        label="候选文献池 (勾选作为核心精读样本)：",
+                        elem_classes=["claude-checkbox-group"],
+                    )
+                    with gr.Row():
+                        btn_select_all = gr.Button("全选", size="sm")
+                        btn_select_top6 = gr.Button("推荐精选 Top 6", size="sm", variant="secondary")
+                        btn_clear_all = gr.Button("清空选择", size="sm")
 
-        # ==================== 3. 最终科研成果大画布 ====================
+                    hitl_candidate_detail_table = gr.Dataframe(
+                        headers=["序号", "论文标题", "中文要点导读", "年份", "数据源/期刊", "相关度"],
+                        datatype=["number", "str", "str", "number", "str", "str"],
+                        label="📋 候选文献详细情报与中文摘要索引",
+                        wrap=True,
+                    )
+
+                # 中间：视觉漏斗连线流 SVG 动画
+                with gr.Column(scale=3):
+                    funnel_svg_html = gr.HTML(render_funnel_svg(20, 6))
+
+                # 右侧：已选核心文献池预览与续跑按钮
+                with gr.Column(scale=5):
+                    hitl_selected_counter_md = gr.Markdown("### 🎯 2. 已选核心文献池: **6** / 20 篇\n> 点击下方按钮即可将选中文献注入智能体，启动要素深度抽取与大纲合成。")
+                    hitl_selected_preview = gr.Dataframe(
+                        headers=["已选序号", "核心论文标题", "发表年份", "相关度"],
+                        datatype=["number", "str", "number", "str"],
+                        label="🌟 拟注入智能体深度抽取与大纲生成的文献池",
+                        wrap=True,
+                    )
+                    resume_flow_btn = gr.Button(
+                        "✦ 确认选中文献并启动AI深度研判与大纲生成 ➔",
+                        variant="primary",
+                        elem_classes=["claude-resume-btn"],
+                        size="lg",
+                    )
+
+        # ==================== 3. 最终科研成果大画布 (Decision 2: 赛题核心功能交付) ====================
         with gr.Group(visible=False, elem_classes=["claude-canvas"]) as result_workspace:
             gr.HTML("""
             <div style="font-size: 16px; font-weight: 700; color: #2D2A26; margin-bottom: 16px; border-bottom: 1.5px solid #E8E4DB; padding-bottom: 8px; display: flex; justify-content: space-between;">
@@ -879,14 +1142,14 @@ def build_ui():
             """)
 
             with gr.Tabs():
-                with gr.TabItem("📄 学术文献综述与选题长文"):
+                with gr.TabItem("📄 综述大纲规划与初稿框架 (核心成果)"):
                     final_report_md = gr.Markdown()
 
-                with gr.TabItem("📚 精选学术文献池与特征萃取"):
+                with gr.TabItem("📚 精选核心文献池与特征萃取"):
                     result_papers_table = gr.Dataframe(
                         headers=["序号", "论文标题", "年份", "被引频次", "相关度得分", "数据源"],
                         datatype=["number", "str", "number", "number", "str", "str"],
-                        label="📚 高相关精选文献池 (精准去重与语义过滤后)",
+                        label="📚 学者精选核心文献池 (已注入下游深度解析)",
                         wrap=True,
                     )
                     features_summary_md = gr.Markdown()
@@ -929,6 +1192,7 @@ def build_ui():
                     )
 
         # ==================== 交互事件绑定 ====================
+        # 1. 启动工作流
         run_main_btn.click(
             fn=start_research_flow,
             inputs=[
@@ -943,8 +1207,11 @@ def build_ui():
             outputs=[
                 pipeline_status_component,
                 hitl_card,
-                hitl_papers_table,
-                hitl_outline_editor,
+                hitl_candidate_checkboxes,
+                hitl_candidate_detail_table,
+                funnel_svg_html,
+                hitl_selected_counter_md,
+                hitl_selected_preview,
                 result_workspace,
                 final_report_md,
                 result_papers_table,
@@ -956,14 +1223,37 @@ def build_ui():
             ],
         )
 
+        # 2. 复选框状态动态联动
+        hitl_candidate_checkboxes.change(
+            fn=update_candidate_selection_view,
+            inputs=[hitl_candidate_checkboxes],
+            outputs=[funnel_svg_html, hitl_selected_counter_md, hitl_selected_preview],
+        )
+
+        # 3. 快捷选择操作
+        btn_select_all.click(
+            fn=select_all_candidates_action,
+            inputs=[],
+            outputs=[hitl_candidate_checkboxes],
+        )
+        btn_select_top6.click(
+            fn=select_top6_candidates_action,
+            inputs=[],
+            outputs=[hitl_candidate_checkboxes],
+        )
+        btn_clear_all.click(
+            fn=clear_candidate_selection_action,
+            inputs=[],
+            outputs=[hitl_candidate_checkboxes],
+        )
+
+        # 4. 确认核心文献并续跑至交付
         resume_flow_btn.click(
-            fn=lambda outline, dfile, refs: continue_research_flow(current_active_task_id, outline, dfile, refs),
-            inputs=[hitl_outline_editor, data_file_input, refs_text_input],
+            fn=resume_research_with_selected_papers,
+            inputs=[hitl_candidate_checkboxes, data_file_input, refs_text_input],
             outputs=[
                 pipeline_status_component,
                 hitl_card,
-                hitl_papers_table,
-                hitl_outline_editor,
                 result_workspace,
                 final_report_md,
                 result_papers_table,
@@ -981,4 +1271,3 @@ def build_ui():
 if __name__ == "__main__":
     demo = build_ui()
     launch_claude_ui(demo, server_name="127.0.0.1", server_port=7860, inbrowser=False)
-
