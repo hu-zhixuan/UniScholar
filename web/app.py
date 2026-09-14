@@ -1,7 +1,8 @@
 """
-UniScholar (联智学者) - 现代极简科研智能体工作台
+UniScholar (联智学者) - 极简 Claude 暖雅学术科研工作台
 面向大创赛产业赛道（中国联通浙江省分公司命题）：基于通用智能体工作流的高校科研全流程自动化系统。
-采用现代科研 SaaS 设计范式（类似 Linear / Notion / Perplexity），剔除冗余调试元素，打造高完成度商业级界面。
+采用 Anthropic Claude 标志性的暖雅学术美学（Warm Terracotta & Sand / Ivory），
+彻底清除浏览器暗色模式冲突（告别黑白混杂），呈现呼吸感、极具人文科研质感的商业级界面。
 """
 
 import json
@@ -9,7 +10,7 @@ import logging
 import os
 import sys
 
-# 保证 Windows 控制台与输出无乱码
+# 避免控制台乱码
 if hasattr(sys.stdout, "reconfigure"):
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -39,13 +40,13 @@ ref_agent = ReferenceAgent()
 current_active_task_id = None
 
 
-def render_modern_pipeline(current_step: str, status: str) -> str:
-    """生成科技感现代化 Pipeline 流程进度指示器"""
+def render_claude_pipeline(current_step: str, status: str) -> str:
+    """生成具有 Claude 质感的优雅工作流 Pipeline 进度卡片"""
     steps = [
-        ("1. 文献递归检索", WorkflowStep.LITERATURE_RETRIEVAL.value, "🔍"),
-        ("2. 核心要素抽取", WorkflowStep.FEATURE_EXTRACTION.value, "🧬"),
-        ("3. 综述大纲规划", WorkflowStep.OUTLINE_GENERATION.value, "📑"),
-        ("4. 成果合成与绘图", WorkflowStep.COMPLETED.value, "📊"),
+        ("1. 文献递归检索", WorkflowStep.LITERATURE_RETRIEVAL.value, "✦"),
+        ("2. 核心要素抽取", WorkflowStep.FEATURE_EXTRACTION.value, "✦"),
+        ("3. 综述大纲规划", WorkflowStep.OUTLINE_GENERATION.value, "✦"),
+        ("4. 成果合成与绘图", WorkflowStep.COMPLETED.value, "✦"),
     ]
 
     step_keys = [s[1] for s in steps]
@@ -56,52 +57,53 @@ def render_modern_pipeline(current_step: str, status: str) -> str:
     html_items = []
     for idx, (name, key, icon) in enumerate(steps):
         if status == WorkflowStatus.COMPLETED.value or idx < cur_idx:
-            # 已完成节点
-            node_style = "background: #E8F7EE; color: #1B873F; border: 1px solid #B7EB8F;"
-            tag = "✓ 已完成"
+            # 优雅鼠尾草绿 (Sage Green - 已完成)
+            style = "background: #F0F5F0; color: #2D6A3E; border: 1px solid #D1E3D3;"
+            tag = "已完成 ✓"
         elif idx == cur_idx:
             if status == WorkflowStatus.PAUSED.value:
-                # 暂停等待人在回路确认
-                node_style = "background: #FFF7E6; color: #D46B08; border: 2px solid #FFBB96; box-shadow: 0 0 10px rgba(255,149,0,0.25);"
-                tag = "⏸️ 待人工确认"
+                # 暖杏琥珀色 (Amber Gold - 待人工确认)
+                style = "background: #FEF8EC; color: #A06400; border: 1.5px solid #F5DAA5; box-shadow: 0 0 10px rgba(160,100,0,0.12);"
+                tag = "待人工确认 ⏸️"
             elif status == WorkflowStatus.RUNNING.value:
-                # 正在执行
-                node_style = "background: #E8F3FF; color: #165DFF; border: 2px solid #94BFFF; box-shadow: 0 0 12px rgba(22,93,255,0.2);"
-                tag = "⏳ 进行中"
+                # 克劳德陶土珊瑚色 (Claude Terracotta - 进行中)
+                style = "background: #FDF3EE; color: #C25E3E; border: 1.5px solid #F5C6B5; box-shadow: 0 0 12px rgba(194,94,62,0.15);"
+                tag = "执行中 ⏳"
             else:
-                node_style = "background: #F2F3F5; color: #86909C; border: 1px solid #E5E6EB;"
+                style = "background: #F7F4EE; color: #78736B; border: 1px solid #E8E2D6;"
                 tag = "等待"
         else:
-            node_style = "background: #F8F9FA; color: #C9CDD4; border: 1px solid #E5E6EB;"
+            # 柔和暖燕麦灰 (Muted Sand - 待执行)
+            style = "background: #FAF8F5; color: #A8A196; border: 1px solid #ECE7DE;"
             tag = "待执行"
 
         html_items.append(f"""
-        <div style="flex: 1; min-width: 140px; padding: 10px 14px; border-radius: 12px; {node_style}; display: flex; flex-direction: column; gap: 4px; transition: all 0.3s ease;">
+        <div style="flex: 1; min-width: 140px; padding: 9px 14px; border-radius: 10px; {style}; display: flex; flex-direction: column; gap: 3px; font-family: inherit;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
-                <span style="font-weight: 700; font-size: 13px;">{icon} {name}</span>
-                <span style="font-size: 11px; font-weight: 600; padding: 2px 6px; border-radius: 6px; background: rgba(255,255,255,0.7);">{tag}</span>
+                <span style="font-weight: 600; font-size: 13px;">{icon} {name}</span>
+                <span style="font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 4px; background: rgba(255,255,255,0.7);">{tag}</span>
             </div>
         </div>
         """)
 
-    connector = '<div style="color: #C9CDD4; font-weight: bold; font-size: 16px; align-self: center;">➔</div>'
+    connector = '<div style="color: #D6D0C4; font-weight: 400; font-size: 14px; align-self: center;">➔</div>'
     joined_nodes = f" {connector} ".join(html_items)
 
     status_pill = {
-        WorkflowStatus.IDLE.value: '<span style="color: #86909C;">● 系统就绪 (Ready)</span>',
-        WorkflowStatus.RUNNING.value: '<span style="color: #165DFF; font-weight: bold;">● 智能体自主编排中 (Running)</span>',
-        WorkflowStatus.PAUSED.value: '<span style="color: #FF7D00; font-weight: bold;">● 工作流断点挂起 (Paused for HITL)</span>',
-        WorkflowStatus.COMPLETED.value: '<span style="color: #00B42A; font-weight: bold;">● 全流程闭环完成 (Completed)</span>',
-    }.get(status, '<span style="color: #86909C;">就绪</span>')
+        WorkflowStatus.IDLE.value: '<span style="color: #79746C;">● 智能体就绪 (Ready)</span>',
+        WorkflowStatus.RUNNING.value: '<span style="color: #C25E3E; font-weight: 600;">● 自主编排执行中 (Running)</span>',
+        WorkflowStatus.PAUSED.value: '<span style="color: #A06400; font-weight: 600;">● 检查点已暂停 · 等待确认 (Paused)</span>',
+        WorkflowStatus.COMPLETED.value: '<span style="color: #2D6A3E; font-weight: 600;">● 全流程已交付 (Completed)</span>',
+    }.get(status, '<span style="color: #79746C;">就绪</span>')
 
     return f"""
-    <div style="background: #FFFFFF; border: 1px solid #E5E6EB; border-radius: 14px; padding: 14px 20px; box-shadow: 0 4px 16px rgba(0,0,0,0.03); margin-bottom: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <div style="font-size: 13px; font-weight: 700; color: #1D2129; display: flex; align-items: center; gap: 8px;">
-                <span>🌐 通用智能体工作流执行管道 (StateGraph DAG)</span>
-                <span style="font-size: 11px; background: #F2F3F5; color: #4E5969; padding: 2px 8px; border-radius: 4px; font-weight: 500;">联通元景万悟标准</span>
+    <div style="background: #FFFFFF; border: 1px solid #E8E3DA; border-radius: 14px; padding: 14px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); margin-bottom: 20px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div style="font-size: 13px; font-weight: 600; color: #2B2824; display: flex; align-items: center; gap: 8px;">
+                <span>✦ 通用智能体工作流执行管线 (StateGraph DAG)</span>
+                <span style="font-size: 11px; background: #F4F1EA; color: #6E685E; padding: 2px 8px; border-radius: 12px;">联通元景万悟标准</span>
             </div>
-            <div style="font-size: 12px;">{status_pill}</div>
+            <div style="font-size: 12px; font-family: inherit;">{status_pill}</div>
         </div>
         <div style="display: flex; gap: 10px; flex-wrap: wrap;">
             {joined_nodes}
@@ -110,7 +112,7 @@ def render_modern_pipeline(current_step: str, status: str) -> str:
     """
 
 
-# ==================== 工作流事件处理 ====================
+# ==================== 工作流事件调度 ====================
 def start_research_flow(query, keywords_str, years, max_papers, pause_hitl, data_file, refs_text):
     global current_active_task_id
 
@@ -151,18 +153,17 @@ def start_research_flow(query, keywords_str, years, max_papers, pause_hitl, data
     if pause_hitl:
         engine.pause_task(state.task_id, reason="人在回路：大纲规划完成，等待作者审核编辑")
         state = engine.load_checkpoint(state.task_id)
-        pipeline_html = render_modern_pipeline(state.current_step.value, state.status.value)
+        pipeline_html = render_claude_pipeline(state.current_step.value, state.status.value)
         return (
             pipeline_html,
-            gr.update(visible=True),   # 显示人在回路编辑卡片
-            outline_md,                # 填入大纲
-            gr.update(visible=False),  # 隐藏成果区直至最终完成
+            gr.update(visible=True),   # 唤醒人在回路编辑卡片
+            outline_md,                # 填入生成的大纲
+            gr.update(visible=False),  # 成果画布保持隐藏
             "",
             [],
             "",
         )
 
-    # 不暂停则直接生成完毕
     return continue_research_flow(state.task_id, outline_md, data_file, refs_text)
 
 
@@ -174,7 +175,7 @@ def continue_research_flow(task_id, approved_outline, data_file, refs_text):
     state.data["review_outline"] = approved_outline
     state.status = WorkflowStatus.RUNNING
 
-    # 4. 综述初稿
+    # 4. 综述初稿合成
     state.current_step = WorkflowStep.REVIEW_SYNTHESIS
     features_objs = [PaperFeature(**f) for f in state.data.get("extracted_features", [])]
     review_draft = rev_agent.generate_review_draft(
@@ -218,140 +219,197 @@ def continue_research_flow(task_id, approved_outline, data_file, refs_text):
 ```
 """
 
-    pipeline_html = render_modern_pipeline("completed", WorkflowStatus.COMPLETED.value)
+    pipeline_html = render_claude_pipeline("completed", WorkflowStatus.COMPLETED.value)
 
     return (
         pipeline_html,
         gr.update(visible=False),  # 隐藏人在回路卡片
         approved_outline,
-        gr.update(visible=True),   # 展开成果大看板
+        gr.update(visible=True),   # 展开成果画布
         final_report,
         data_res["charts"],
         formatted_citations,
     )
 
 
-# ==================== 页面 UI 构建 ====================
+# ==================== 构建 Claude 风格 UI ====================
 def build_ui():
-    custom_css = """
-    :root {
-        --primary-color: #165DFF;
-        --bg-color: #F7F8FA;
+    # 彻底抹平浏览器暗色模式，强制统一为 Claude 标志性的暖燕麦色与陶土棕体系
+    claude_css = """
+    /* 强制抹除系统暗色冲突，全站统一暖雅底色 */
+    :root, .dark, body, .gradio-container {
+        --body-background-fill: #FAF9F5 !important;
+        --background-fill-primary: #FFFFFF !important;
+        --background-fill-secondary: #F4F1EA !important;
+        --border-color-primary: #E8E4DB !important;
+        --border-color-accent: #CC785C !important;
+        --color-accent: #CC785C !important;
+        --color-accent-soft: #FDF3EE !important;
+        --body-text-color: #2D2A26 !important;
+        --block-label-text-color: #6E685E !important;
+        --input-background-fill: #FFFFFF !important;
+        --input-border-color: #E2DDD5 !important;
+        --input-border-color-focus: #CC785C !important;
+        --button-primary-background-fill: #CC785C !important;
+        --button-primary-background-fill-hover: #B8654B !important;
+        --button-primary-text-color: #FFFFFF !important;
+        --block-radius: 12px !important;
+        --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif !important;
     }
+
     body, .gradio-container {
-        background-color: #F7F8FA !important;
-        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif !important;
-        max-width: 1280px !important;
+        background-color: #FAF9F5 !important;
+        color: #2D2A26 !important;
+        max-width: 1240px !important;
         margin: 0 auto !important;
+        padding-top: 20px !important;
     }
-    .hero-header {
+
+    /* 顶部精致暖雅 Header */
+    .claude-nav {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        padding: 16px 20px;
+        padding: 18px 24px;
         background: #FFFFFF;
         border-radius: 16px;
-        box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+        border: 1px solid #E8E4DB;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.02);
         margin-bottom: 20px;
-        border: 1px solid #E5E6EB;
     }
-    .hero-title {
+    .claude-brand {
         font-size: 20px;
-        font-weight: 800;
-        color: #0F172A;
+        font-weight: 700;
+        color: #2D2A26;
         display: flex;
         align-items: center;
         gap: 10px;
-        letter-spacing: -0.5px;
+        letter-spacing: -0.3px;
     }
-    .hero-tag {
+    .claude-logo-icon {
+        color: #CC785C;
+        font-size: 22px;
+    }
+    .claude-tag {
         font-size: 11px;
-        background: #E8F3FF;
-        color: #165DFF;
-        padding: 4px 10px;
-        border-radius: 20px;
-        font-weight: 600;
-        border: 1px solid #BED8FF;
-    }
-    .search-card {
-        background: #FFFFFF;
-        border: 1px solid #E5E6EB;
+        background: #FDF3EE;
+        color: #CC785C;
+        padding: 3px 10px;
         border-radius: 16px;
-        padding: 24px;
-        box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04);
-        margin-bottom: 20px;
+        font-weight: 600;
+        border: 1px solid #F5C6B5;
     }
-    .hitl-box {
-        background: #FFFBE6 !important;
-        border: 2px solid #FFE58F !important;
-        border-radius: 14px !important;
-        padding: 20px !important;
-        box-shadow: 0 8px 24px rgba(255,170,0,0.12) !important;
-        margin-bottom: 24px !important;
+
+    /* 核心输入卡片 */
+    .claude-card {
+        background: #FFFFFF !important;
+        border: 1px solid #E8E4DB !important;
+        border-radius: 16px !important;
+        padding: 24px !important;
+        box-shadow: 0 4px 18px rgba(0,0,0,0.02) !important;
+        margin-bottom: 20px !important;
     }
-    .primary-btn {
-        background: linear-gradient(135deg, #165DFF 0%, #0E42D2 100%) !important;
-        color: white !important;
+
+    /* 克劳德经典陶土色主按钮 */
+    .claude-primary-btn {
+        background: #CC785C !important;
+        color: #FFFFFF !important;
         border: none !important;
         border-radius: 10px !important;
         font-weight: 600 !important;
-        box-shadow: 0 4px 14px rgba(22,93,255,0.3) !important;
+        font-size: 15px !important;
+        box-shadow: 0 4px 12px rgba(204,120,92,0.25) !important;
         transition: all 0.2s ease !important;
     }
-    .primary-btn:hover {
+    .claude-primary-btn:hover {
+        background: #B8654B !important;
         transform: translateY(-1px) !important;
-        box-shadow: 0 6px 20px rgba(22,93,255,0.4) !important;
+        box-shadow: 0 6px 16px rgba(204,120,92,0.35) !important;
     }
-    .resume-btn {
-        background: linear-gradient(135deg, #FF7D00 0%, #E05A00 100%) !important;
-        color: white !important;
+
+    /* 人在回路温润琥珀卡片 */
+    .claude-hitl-box {
+        background: #FEFBF4 !important;
+        border: 1.5px solid #EBDCC2 !important;
+        border-radius: 14px !important;
+        padding: 20px !important;
+        box-shadow: 0 4px 16px rgba(160,100,0,0.06) !important;
+        margin-bottom: 24px !important;
+    }
+    .claude-resume-btn {
+        background: #CC785C !important;
+        color: #FFFFFF !important;
         border-radius: 10px !important;
         font-weight: 600 !important;
-        box-shadow: 0 4px 14px rgba(255,125,0,0.3) !important;
+        box-shadow: 0 4px 12px rgba(204,120,92,0.25) !important;
     }
-    .result-card {
-        background: #FFFFFF;
-        border: 1px solid #E5E6EB;
-        border-radius: 16px;
-        padding: 24px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
+
+    /* 成果画布 */
+    .claude-canvas {
+        background: #FFFFFF !important;
+        border: 1px solid #E8E4DB !important;
+        border-radius: 16px !important;
+        padding: 24px !important;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.02) !important;
+    }
+
+    /* 优雅排版微调 */
+    label span {
+        color: #6E685E !important;
+        font-weight: 600 !important;
+        font-size: 12.5px !important;
+    }
+    textarea, input {
+        border-color: #E2DDD5 !important;
+        background-color: #FFFFFF !important;
+        color: #2D2A26 !important;
     }
     footer { display: none !important; }
     """
 
-    with gr.Blocks(title="UniScholar - 通用AI科研智能体") as demo:
-        # 顶部极简导航条
-        gr.HTML(f"""
-        <style>{custom_css}</style>
-        <div class="hero-header">
-            <div class="hero-title">
-                <span>🎓 UniScholar</span>
-                <span style="font-size: 14px; font-weight: 600; color: #4E5969;">联智学者 · 高校科研通用智能体工作台</span>
-                <span class="hero-tag">中国联通产业赛道命题</span>
+    head_script = """
+    <script>
+        document.documentElement.classList.remove('dark');
+        document.body.classList.remove('dark');
+        window.addEventListener('DOMContentLoaded', () => {
+            document.documentElement.classList.remove('dark');
+            document.body.classList.remove('dark');
+        });
+    </script>
+    """
+
+    with gr.Blocks(title="UniScholar - 通用AI科研智能体", head=head_script, css=claude_css) as demo:
+        gr.HTML("""
+        <div class="claude-nav">
+            <div class="claude-brand">
+                <span class="claude-logo-icon">✦</span>
+                <span>UniScholar</span>
+                <span style="font-size: 13.5px; font-weight: 500; color: #79746C; margin-left: 4px;">联智学者 · 高校科研通用智能体工作台</span>
+                <span class="claude-tag">中国联通产业赛道</span>
             </div>
-            <div style="font-size: 12px; color: #86909C; display: flex; align-items: center; gap: 12px;">
-                <span>引擎状态：<b style="color: #00B42A;">在线 (Connected)</b></span>
-                <span style="color: #E5E6EB;">|</span>
-                <span>协议标准：<b>元景万悟 v2.0</b></span>
+            <div style="font-size: 12px; color: #8E877D; display: flex; align-items: center; gap: 10px;">
+                <span>引擎状态：<b style="color: #2D6A3E;">就绪 (Ready)</b></span>
+                <span style="color: #E2DDD5;">•</span>
+                <span>工作流标准：<b>元景万悟 v2.0</b></span>
             </div>
         </div>
         """)
 
-        # 核心 Pipeline 状态指示器
-        pipeline_status_component = gr.HTML(render_modern_pipeline("init", "IDLE"))
+        # 核心 Pipeline 流程轴
+        pipeline_status_component = gr.HTML(render_claude_pipeline("init", "IDLE"))
 
-        # ==================== 1. 主工作区输入卡片 ====================
-        with gr.Group(elem_classes=["search-card"]):
+        # ==================== 1. 主输入交互卡片 ====================
+        with gr.Group(elem_classes=["claude-card"]):
             with gr.Row():
                 with gr.Column(scale=9):
                     main_query = gr.Textbox(
-                        label="💡 科研研究方向或核心选题",
-                        placeholder="输入你正在研究的学术方向，例如：通用智能体在高校科研实验与文献自动化中的应用",
+                        label="研究方向或核心选题",
+                        placeholder="输入你正在开展的研究方向，例如：通用智能体在高校科研实验与文献自动化中的应用",
                         value="通用智能体在高校科研流程中的自动化应用",
                         lines=1,
                     )
                 with gr.Column(scale=3):
-                    run_main_btn = gr.Button("🚀 启动全流程科研协作", variant="primary", elem_classes=["primary-btn"], size="lg")
+                    run_main_btn = gr.Button("✦ 启动智能体科研协作", variant="primary", elem_classes=["claude-primary-btn"], size="lg")
 
             with gr.Row():
                 with gr.Column(scale=6):
@@ -360,54 +418,54 @@ def build_ui():
                         value="AI Agent, Scientific Workflow, Research Automation",
                     )
                 with gr.Column(scale=3):
-                    years_slider = gr.Slider(minimum=1, maximum=10, value=3, step=1, label="检索年份跨度 (近N年)")
+                    years_slider = gr.Slider(minimum=1, maximum=10, value=3, step=1, label="文献年份跨度 (近N年)")
                 with gr.Column(scale=3):
                     papers_slider = gr.Slider(minimum=5, maximum=40, value=15, step=5, label="文献精筛池上限")
 
             with gr.Row():
                 pause_hitl_checkbox = gr.Checkbox(
-                    label="🛑 启用人在回路 (HITL) 断点审核：在大纲规划完成后自动暂停，允许学者润色修改后再继续执行",
+                    label="✦ 开启人在回路 (HITL) 断点审核：在大纲规划完成后自动暂停，供学者审阅润色后再继续合成",
                     value=True,
                 )
 
-            # 折叠高级选项（上传数据与参考文献）
-            with gr.Accordion("📂 附加科研数据与参考文献文件 (点击展开)", open=False):
+            # 折叠高级选项
+            with gr.Accordion("附加实验数据与参考文献样本 (可选，点击展开)", open=False):
                 with gr.Row():
                     with gr.Column(scale=6):
-                        data_file_input = gr.File(label="上传实验数据表格 (.csv / .xlsx，不上传则使用系统内置公开实验数据)")
+                        data_file_input = gr.File(label="上传实验数据表格 (.csv / .xlsx，不传则使用系统内置公开实验数据)")
                     with gr.Column(scale=6):
                         refs_text_input = gr.Textbox(
-                            label="输入或粘贴待规范的参考文献 (不填写则使用内置学术样本进行国标排版)",
+                            label="输入待规范的参考文献 (不填则使用内置学术样本进行国标排版)",
                             placeholder="每行一条参考文献...",
                             lines=3,
                         )
 
-        # ==================== 2. 人在回路审核卡片 (默认隐藏，断点触发时显示) ====================
-        with gr.Group(visible=False, elem_classes=["hitl-box"]) as hitl_card:
+        # ==================== 2. 人在回路温润审核卡片 (仅断点时显示) ====================
+        with gr.Group(visible=False, elem_classes=["claude-hitl-box"]) as hitl_card:
             gr.HTML("""
-            <div style="font-weight: bold; font-size: 15px; color: #D46B08; margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
-                <span>🛑 工作流已在检查点挂起暂停 (Human-in-the-Loop Checkpoint)</span>
+            <div style="font-weight: 600; font-size: 15px; color: #A06400; margin-bottom: 4px; display: flex; align-items: center; gap: 6px;">
+                <span>✦ 工作流已在检查点挂起 (Human-in-the-Loop Checkpoint)</span>
             </div>
-            <div style="font-size: 13px; color: #873800; margin-bottom: 12px;">
-                智能体已完成多源文献递归检索与核心创新点提炼，并自动规划了文献综述大纲。<b>您可以直接在下方富文本框中润色或调整大纲</b>，确认无误后点击右下方按钮无损续跑！
+            <div style="font-size: 13px; color: #6E5325; margin-bottom: 12px; line-height: 1.5;">
+                智能体已完成多源文献检索与创新点提炼，并为您规划了初步综述大纲。<b>您可以直接在下方文本框中在线润色微调</b>，确认无误后点击右侧按钮无损续跑！
             </div>
             """)
-            hitl_outline_editor = gr.Textbox(label="文献综述大纲规划稿 (可直接在线修改)", lines=8)
+            hitl_outline_editor = gr.Textbox(label="文献综述大纲初稿 (支持在线编辑)", lines=8)
             with gr.Row():
-                gr.Markdown("*(提示：修改后的内容将作为最新 Checkpoint 存盘，下游节点将基于您的修改继续合成综述)*")
-                resume_flow_btn = gr.Button("💾 确认大纲并继续执行工作流 (Resume)", variant="stop", elem_classes=["resume-btn"], size="lg")
+                gr.Markdown("*(提示：修改后的内容将作为最新检查点保存，下游节点将基于您的修改继续合成正文)*")
+                resume_flow_btn = gr.Button("确认大纲并继续执行 ➔", variant="primary", elem_classes=["claude-resume-btn"], size="lg")
 
-        # ==================== 3. 最终成果大画布 (工作流跑完后展开) ====================
-        with gr.Group(visible=False, elem_classes=["result-card"]) as result_workspace:
+        # ==================== 3. 最终成果大画布 ====================
+        with gr.Group(visible=False, elem_classes=["claude-canvas"]) as result_workspace:
             gr.HTML("""
-            <div style="font-size: 17px; font-weight: 800; color: #1D2129; margin-bottom: 16px; border-bottom: 2px solid #165DFF; padding-bottom: 8px; display: flex; justify-content: space-between;">
+            <div style="font-size: 16px; font-weight: 700; color: #2D2A26; margin-bottom: 16px; border-bottom: 1.5px solid #E8E4DB; padding-bottom: 8px; display: flex; justify-content: space-between;">
                 <span>📑 UniScholar 全流程科研综合成果画布</span>
-                <span style="font-size: 12px; color: #00B42A; font-weight: 600;">✓ 已通过 Citation Validator 引文防幻觉检验</span>
+                <span style="font-size: 12px; color: #2D6A3E; font-weight: 500;">✓ 已通过 Citation Validator 真实文献防幻觉检验</span>
             </div>
             """)
 
             with gr.Row():
-                # 左栏：文献综述正文 (纯净学术排版)
+                # 左栏：文献综述正文 (纯净学术阅读排版)
                 with gr.Column(scale=6):
                     gr.Markdown("### 📄 文献综述与创新点提炼稿")
                     final_report_md = gr.Markdown()
@@ -420,13 +478,13 @@ def build_ui():
                     gr.Markdown("### 📐 规范参考文献列表 (GB/T 7714-2015)")
                     formatted_citations_box = gr.Markdown()
 
-        # ==================== 底部快速单项调试抽屉 (按需使用) ====================
-        with gr.Accordion("🛠️ 专家单项工具箱 (文献初筛 / 数据绘图 / 国标排版独立测试)", open=False):
+        # ==================== 4. 底部快速单项工具抽屉 (折叠收纳) ====================
+        with gr.Accordion("专家单项工具箱 (文献初筛 / 数据绘图 / 国标排版独立测试)", open=False):
             with gr.Tabs():
                 with gr.TabItem("📊 实验数据独立绘图"):
                     with gr.Row():
                         q_file = gr.File(label="上传实验表格")
-                        q_btn = gr.Button("快速分析绘图", variant="primary")
+                        q_btn = gr.Button("快速分析绘图", variant="primary", elem_classes=["claude-primary-btn"])
                     q_rep = gr.Markdown()
                     q_gal = gr.Gallery()
                     q_btn.click(
@@ -438,8 +496,8 @@ def build_ui():
                 with gr.TabItem("📐 国标参考文献格式化"):
                     with gr.Row():
                         q_ref_in = gr.Textbox(label="粘贴乱序参考文献", value=get_sample_references_text(), lines=5)
-                        q_fmt = gr.Radio(choices=["GB/T 7714", "APA", "IEEE"], value="GB/T 7714", label="格式")
-                        q_ref_btn = gr.Button("格式转换与纠错", variant="primary")
+                        q_fmt = gr.Radio(choices=["GB/T 7714", "APA", "IEEE"], value="GB/T 7714", label="目标格式")
+                        q_ref_btn = gr.Button("格式转换与纠错", variant="primary", elem_classes=["claude-primary-btn"])
                     q_ref_out = gr.Textbox(label="规范引用结果", lines=5)
                     q_ref_btn.click(
                         fn=lambda t, f: ref_agent.run(t, f)["formatted_text"],
