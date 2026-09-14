@@ -10,7 +10,7 @@ if current_dir not in sys.path:
     sys.path.insert(0, current_dir)
 
 import utils.network_config  # noqa: F401
-from web.app import build_ui
+from web.app import build_ui, launch_claude_ui
 
 if __name__ == "__main__":
     demo = build_ui()
@@ -19,4 +19,5 @@ if __name__ == "__main__":
     print("  UniScholar (联智学者) WebUI 正在启动...")
     print(f"  浏览器访问地址: http://127.0.0.1:{port}")
     print("========================================================")
-    demo.launch(server_name="127.0.0.1", server_port=port, inbrowser=False)
+    launch_claude_ui(demo, server_name="127.0.0.1", server_port=port, inbrowser=False)
+
