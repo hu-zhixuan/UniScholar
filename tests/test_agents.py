@@ -206,6 +206,82 @@ class TestUniScholar(unittest.TestCase):
             self.assertNotIn("porn", p["title"].lower())
             self.assertNotIn("cadmium", p["title"].lower())
 
+    def test_no_english_sentence_leakage_and_pure_chinese_synthesis(self):
+        """测试彻底消除中英夹杂与原始英文长句机械拼接 (Decision 4)"""
+        from agents.review_agent import _extract_fallback_features_from_abstract, synthesize_deep_academic_review
+
+        # 模拟包含原始英文摘要和 section 标记的文献
+        raw_paper = {
+            "title": "Enhanced conditioning and disrupted extinction processes in men struggling with compulsive sexual behaviors",
+            "publication_year": 2025,
+            "authors": ["Kowalewska E", "Gola M"],
+            "abstract": "Background and aims Despite a previously reported connection between compulsive sexual behaviors (CSB) and heightened cue-reactivity, empirical evidence remains sparse. Methods Thirty-two heterosexual males struggling with CSB underwent active appetitive conditioning and extinction tasks in fMRI. Results During conditioning users showed ventral striatum response. Additionally, despite the absence of rewards, the persistence of arousal towards cues underscored the maladaptive extinction process. These insights advance CSB neurobiology.",
+        }
+
+        feat = _extract_fallback_features_from_abstract(raw_paper, topic="色情片对大脑影响")
+
+        # 验证要素中绝无未经翻译的英文 section 标记
+        self.assertNotIn("Background and aims", feat.background)
+        self.assertNotIn("Methods Thirty-two", feat.methodology)
+        for inno in feat.core_innovations:
+            self.assertNotIn("Results During", inno)
+        for conc in feat.main_conclusions:
+            self.assertNotIn("Additionally, despite", conc)
+
+        # 验证所有字段均为地道学术中文
+        import re
+        self.assertGreater(len(re.findall(r"[\u4e00-\u9fff]", feat.background)), 5)
+        self.assertGreater(len(re.findall(r"[\u4e00-\u9fff]", feat.methodology)), 5)
+        self.assertGreater(len(re.findall(r"[\u4e00-\u9fff]", feat.core_innovations[0])), 5)
+        self.assertGreater(len(re.findall(r"[\u4e00-\u9fff]", feat.main_conclusions[0])), 5)
+
+        # 合成综述正文并验证绝无中英夹杂的拼装病句
+        outline = "# 《色情片对大脑影响》综述大纲"
+        review_text = synthesize_deep_academic_review("色情片对大脑影响", outline, [feat])
+
+        self.assertNotIn("该工作创新性地Background and aims", review_text)
+        self.assertNotIn("并依托Methods Thirty-two", review_text)
+        self.assertNotIn("其实证结果明确揭示：Additionally, despite", review_text)
+        self.assertNotIn("maladaptive extinction process", review_text)
+
+        # 验证表格内容为纯中文
+        self.assertIn("核心创新突破与机制", review_text)
+        self.assertIn("研究方法与技术方案", review_text)
+        self.assertIn("实证对标结论", review_text)
+        self.assertIn(raw_paper["title"], review_text)
+
+    def test_hitl_candidate_funnel_workflow(self):
+        """测试人在回路候选文献池遴选工作流 (Decision 1 & 3)"""
+        # 1. 测试候选检索返回 ~20 篇文献，且每篇具备 chinese_summary
+        lit_agent = LiteratureAgent()
+        res = lit_agent.run("色情片对大脑影响", ["porn effect"], max_papers=20)
+        self.assertGreaterEqual(len(res["papers"]), 15)
+        for p in res["papers"]:
+            self.assertTrue(bool(p.get("chinese_summary")))
+            self.assertIn("relevance_score", p)
+
+        # 2. 测试工作流引擎在文献检索后支持暂停 (人在回路检查点)
+        task_params = {"query": "色情片对大脑影响", "years": 3}
+        state = self.engine.create_task(task_params, task_id="test_hitl_task_001")
+        state.data["candidate_pool"] = res["papers"]
+        state.current_step = WorkflowStep.LITERATURE_RETRIEVAL
+        state.completed_steps.append("literature_retrieval")
+        self.engine.save_checkpoint(state)
+        self.engine.pause_task("test_hitl_task_001", reason="人在回路：已检索候选池，等待学者挑选")
+
+        paused_state = self.engine.load_checkpoint("test_hitl_task_001")
+        self.assertEqual(paused_state.status, WorkflowStatus.PAUSED)
+        self.assertEqual(len(paused_state.data["candidate_pool"]), len(res["papers"]))
+
+        # 3. 模拟学者勾选 5 篇核心文献并断点恢复
+        selected_5 = res["papers"][:5]
+        resumed_state = self.engine.resume_task("test_hitl_task_001", modified_data={
+            "selected_papers": selected_5,
+            "literature_pool": selected_5,
+        })
+        self.assertEqual(resumed_state.status, WorkflowStatus.RUNNING)
+        self.assertEqual(len(resumed_state.data["selected_papers"]), 5)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -110,6 +110,7 @@ def run_full_pipeline(
             search_queries=plan_data.get("search_queries"),
             filter_keywords=plan_data.get("filter_keywords"),
         )
+        state.data["candidate_pool"] = lit_res["papers"]
         state.data["literature_pool"] = lit_res["papers"]
         state.data["literature_stats"] = {
             "total_fetched": lit_res["total_fetched"],
@@ -118,16 +119,32 @@ def run_full_pipeline(
         }
         state.completed_steps.append("literature_retrieval")
         engine.save_checkpoint(state)
-        engine.log(state, f"节点 1 完成: 精选文献池包含 {len(lit_res['papers'])} 篇高相关文献")
+        engine.log(state, f"节点 1 完成: 候选文献池包含 {len(lit_res['papers'])} 篇高相关文献")
 
-    # ==================== Step 2: 核心信息抽取 ====================
+        # 检查是否需要人工干预断点 (Decision 1: 候选文献池检出后挂起等待学者点选)
+        if pause_for_human:
+            engine.pause_task(state.task_id, reason="人在回路断点：已检索出候选文献池，等待学者挑选核心文献")
+            print(f"\n[🛑 工作流已在候选文献断点暂停] 检查点任务 ID: {state.task_id}")
+            print(f"已召回 {len(lit_res['papers'])} 篇候选文献。学者可在 WebUI 交互漏斗中点选核心文献，或指定任务 ID 断点续跑。")
+            return state
+
+    # ==================== 确定核心精读文献池 (过滤用户未选中的文献) ====================
+    core_papers = state.data.get("selected_papers")
+    if not core_papers:
+        # 若未手动挑选，默认遴选 Top 6 篇高相关文献注入深度流水线
+        all_candidates = state.data.get("candidate_pool") or state.data.get("literature_pool", [])
+        core_papers = all_candidates[:6] if all_candidates else []
+        state.data["selected_papers"] = core_papers
+        state.data["literature_pool"] = core_papers
+
+    # ==================== Step 2: 核心信息抽取 (仅深度解析所选核心文献) ====================
     if "feature_extraction" not in state.completed_steps:
         state.current_step = WorkflowStep.FEATURE_EXTRACTION
-        engine.log(state, "启动节点 2: 文献核心信息与创新点抽取")
+        engine.log(state, f"启动节点 2: 针对已选 {len(core_papers)} 篇核心文献进行深度要素与创新机制抽取")
 
         rev_agent = ReviewAgent()
         features = rev_agent.batch_extract(
-            state.data.get("literature_pool", []),
+            core_papers,
             topic=state.params.get("query", query),
         )
         state.data["extracted_features"] = [f.model_dump() for f in features]
@@ -136,12 +153,12 @@ def run_full_pipeline(
 
         state.completed_steps.append("feature_extraction")
         engine.save_checkpoint(state)
-        engine.log(state, f"节点 2 完成: 成功结构化抽取 {len(features)} 篇文献要素")
+        engine.log(state, f"节点 2 完成: 成功结构化抽取 {len(features)} 篇核心文献要素")
 
-    # ==================== Step 3: 综述大纲生成 (人在回路断点) ====================
+    # ==================== Step 3: 综述大纲生成 ====================
     if "outline_generation" not in state.completed_steps:
         state.current_step = WorkflowStep.OUTLINE_GENERATION
-        engine.log(state, "启动节点 3: 文献综述大纲规划")
+        engine.log(state, "启动节点 3: 基于精选核心文献规划新论文综述大纲")
 
         rev_agent = ReviewAgent()
         from agents.review_agent import PaperFeature
@@ -151,14 +168,7 @@ def run_full_pipeline(
 
         state.completed_steps.append("outline_generation")
         engine.save_checkpoint(state)
-        engine.log(state, "节点 3 完成: 综述大纲已规划生成")
-
-        # 检查是否需要人工干预断点
-        if pause_for_human:
-            engine.pause_task(state.task_id, reason="人在回路断点：等待用户审查或编辑综述大纲")
-            print(f"\n[🛑 工作流已自动暂停] 检查点任务 ID: {state.task_id}")
-            print(f"当前已生成综述大纲。用户可直接在 checkpoints/{state.task_id}.json 或 WebUI 中修改后继续执行。")
-            return state
+        engine.log(state, "节点 3 完成: 领域专属文献综述大纲已规划生成")
 
     # ==================== Step 4: 综述正文合成与防幻觉校验 ====================
     if "review_synthesis" not in state.completed_steps:
