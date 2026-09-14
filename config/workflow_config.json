@@ -1,0 +1,138 @@
+{
+  "$schema": "https://yuanjing.unicom.cn/schemas/workflow-v2.json",
+  "metadata": {
+    "name": "UniScholar-Universal-Research-Agent",
+    "displayName": "联智学者-高校科研全流程智能体工作流",
+    "version": "1.0.0",
+    "author": "UniScholar Team",
+    "description": "面向大创赛产业赛道（中国联通命题）的通用智能体自动化科研工作流系统",
+    "platform": "unicom_yuanjing_wanwu",
+    "category": "Academic_Research_Automation"
+  },
+  "nodes": [
+    {
+      "id": "node_literature_retrieval",
+      "type": "agent",
+      "agent": "LiteratureRetrievalAgent",
+      "displayName": "文献自动化检索与递归筛选",
+      "tools": [
+        "OpenAlexAPI",
+        "ArxivAPI",
+        "SemanticRelevanceScorer"
+      ],
+      "inputs": [
+        "query",
+        "keywords",
+        "years",
+        "max_papers"
+      ],
+      "outputs": [
+        "literature_pool",
+        "filtered_count"
+      ],
+      "next": "node_feature_extraction",
+      "supportsPause": true
+    },
+    {
+      "id": "node_feature_extraction",
+      "type": "agent",
+      "agent": "ReviewExtractionAgent",
+      "displayName": "文献核心信息抽取与结构化提炼",
+      "tools": [
+        "PydanticSchemaExtractor",
+        "ParallelLLMExecutor"
+      ],
+      "inputs": [
+        "literature_pool"
+      ],
+      "outputs": [
+        "extracted_features",
+        "summary_collection"
+      ],
+      "next": "node_outline_generation",
+      "supportsPause": false
+    },
+    {
+      "id": "node_outline_generation",
+      "type": "hitl_checkpoint",
+      "agent": "ReviewSynthesisAgent",
+      "displayName": "综述大纲规划 (人在回路干预节点)",
+      "tools": [
+        "OutlinePlannerLLM"
+      ],
+      "inputs": [
+        "extracted_features"
+      ],
+      "outputs": [
+        "review_outline"
+      ],
+      "next": "node_review_synthesis",
+      "supportsPause": true,
+      "defaultAction": "PAUSE_FOR_HUMAN_REVIEW"
+    },
+    {
+      "id": "node_review_synthesis",
+      "type": "agent",
+      "agent": "ReviewSynthesisAgent",
+      "displayName": "综述正文生成与防幻觉引文校验",
+      "tools": [
+        "CitationValidator",
+        "RAGContextEngine"
+      ],
+      "inputs": [
+        "review_outline",
+        "literature_pool"
+      ],
+      "outputs": [
+        "final_review_markdown"
+      ],
+      "next": "node_data_analysis",
+      "supportsPause": false
+    },
+    {
+      "id": "node_data_analysis",
+      "type": "tool_executor",
+      "agent": "ExperimentalDataAgent",
+      "displayName": "实验数据初步统计与科研可视化",
+      "tools": [
+        "PandasStatsTool",
+        "MatplotlibPlotTool",
+        "IQRAnomalyDetector"
+      ],
+      "inputs": [
+        "experiment_data_file"
+      ],
+      "outputs": [
+        "statistics_summary",
+        "charts_generated"
+      ],
+      "next": "node_reference_format",
+      "supportsPause": false
+    },
+    {
+      "id": "node_reference_format",
+      "type": "tool_executor",
+      "agent": "ReferenceFormatterAgent",
+      "displayName": "参考文献 GB/T 7714 国标自动排版与纠错",
+      "tools": [
+        "GBT7714Parser",
+        "FormatSwitcher"
+      ],
+      "inputs": [
+        "raw_references_text"
+      ],
+      "outputs": [
+        "formatted_references",
+        "audit_report"
+      ],
+      "next": null,
+      "supportsPause": false
+    }
+  ],
+  "stateManagement": {
+    "persistence": "file_json_checkpoints",
+    "checkpointDir": "checkpoints/",
+    "supportResume": true,
+    "humanInTheLoop": true
+  }
+}
