@@ -192,6 +192,10 @@ class WorkflowEngine:
         self.save_checkpoint(state)
         return state
 
+    def export_yuanjing_workflow_config(self) -> Dict[str, Any]:
+        """兼容别名：导出元景万悟工作流配置文件"""
+        return self.generate_wanwu_workflow_config()
+
     def generate_wanwu_workflow_config(self) -> Dict[str, Any]:
         """
         导出符合中国联通元景万悟平台标准的通用智能体工作流 DAG 配置文件

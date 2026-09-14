@@ -228,6 +228,10 @@ class LLMClient:
         else:
             return (usage.get("prompt_tokens", 0), usage.get("completion_tokens", 0))
 
+    def call_llm(self, *args, **kwargs) -> str:
+        """兼容别名：调用 call 方法"""
+        return self.call(*args, **kwargs)
+
     def call(
         self,
         prompt: str,
@@ -239,6 +243,9 @@ class LLMClient:
     ) -> str:
         """发起 LLM API 请求（自动适配 OpenAI / Anthropic 格式）"""
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+
+        if not self.api_key or not self.api_key.strip() or self.api_key == "your_api_key_here":
+            raise ValueError("未配置有效的 LLM_API_KEY，快速回退至离线生成机制")
 
         # 构建端点列表
         endpoints = []
