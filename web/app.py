@@ -23,6 +23,7 @@ from agents.data_agent import DataAgent
 from agents.literature_agent import LiteratureAgent
 from agents.reference_agent import ReferenceAgent
 from agents.review_agent import PaperFeature, ReviewAgent
+from utils.llm_client import LLMClient
 from core.workflow_engine import WorkflowEngine, WorkflowStatus, WorkflowStep
 from offline_demo.demo_data import (
     get_sample_experiment_csv,
@@ -265,6 +266,65 @@ def continue_research_flow(task_id, approved_outline, data_file, refs_text):
         state.data.get("formatted_references", ""),
         yuanjing_config,           # 元景配置文件
     )
+
+
+def test_llm_connection(base_url, api_key, model):
+    """在线测试大模型网关的可用性与连通耗时"""
+    if not api_key or not api_key.strip():
+        return "⚠️ **请先输入 API Key**（例如 `sk-...`）"
+    import time
+    import requests
+    s = requests.Session()
+    s.trust_env = False
+    url = base_url.strip().rstrip("/")
+    if not url.endswith("/chat/completions"):
+        url += "/chat/completions" if url.endswith("/v1") else "/v1/chat/completions"
+    headers = {"Authorization": f"Bearer {api_key.strip()}", "Content-Type": "application/json"}
+    payload = {
+        "model": model.strip(),
+        "messages": [{"role": "user", "content": "1+1等于几？请直接给出数字。"}],
+        "max_tokens": 50,
+    }
+    t0 = time.time()
+    try:
+        r = s.post(url, headers=headers, json=payload, timeout=20)
+        dt = round(time.time() - t0, 2)
+        if r.status_code == 200:
+            res_json = r.json()
+            msg = res_json.get("choices", [{}])[0].get("message", {})
+            ans = msg.get("content") or msg.get("reasoning_content") or "成功响应"
+            return f"✅ **连通测试成功！** 模型 `{model}` 响应正常（耗时 {dt} 秒）。\n> 示例回复片段: `{str(ans).strip()[:80]}`"
+        elif r.status_code == 403:
+            return f"❌ **鉴权或额度不足 (HTTP 403)**: 当前 Key 额度可能为 0 或无权调用模型 `{model}`。\n详情: `{r.text[:200]}`"
+        elif r.status_code == 500:
+            return f"⚠️ **上游服务器临时报错 (HTTP 500)**: TokenRouter 或上游服务提供商暂时不可用（`upstream error`）。\n详情: `{r.text[:200]}`"
+        else:
+            return f"⚠️ **上游返回状态码 HTTP {r.status_code}**:\n`{r.text[:200]}`"
+    except Exception as e:
+        return f"❌ **网络请求超时或异常**: `{str(e)}`"
+
+
+def save_llm_config(base_url, api_key, model):
+    """持久化保存大模型配置至 .env，并实时热重载各 Agent 的 LLMClient"""
+    env_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+    clean_url = base_url.strip()
+    clean_key = api_key.strip()
+    clean_model = model.strip()
+    content = (
+        f"LLM_API_KEY={clean_key}\n"
+        f"LLM_BASE_URL={clean_url}\n"
+        f"LLM_MODEL={clean_model}\n"
+        f"LLM_API_FORMAT=openai\n"
+        f"LLM_TIMEOUT=25\n"
+        f"LLM_MAX_TOKENS=4000\n"
+    )
+    with open(env_file, "w", encoding="utf-8") as f:
+        f.write(content)
+    os.environ["LLM_API_KEY"] = clean_key
+    os.environ["LLM_BASE_URL"] = clean_url
+    os.environ["LLM_MODEL"] = clean_model
+    rev_agent.llm_client = LLMClient()
+    return f"💾 **配置已成功持久化至 .env 并立即生效！**\n当前已绑定：`{clean_model}` @ `{clean_url}`"
 
 
 # ==================== Claude 标志性暖雅学术美学体系 ====================
@@ -669,6 +729,46 @@ def build_ui():
 
         # 核心 Pipeline 流程轴
         pipeline_status_component = gr.HTML(render_claude_pipeline("init", "IDLE"))
+
+        # ==================== 0. 大模型大脑连接与网关配置抽屉 ====================
+        default_key = os.getenv("LLM_API_KEY", "")
+        masked_key = (default_key[:6] + "..." + default_key[-4:]) if len(default_key) > 10 else (default_key or "未配置")
+        with gr.Accordion("⚙️ 大模型大脑连接与网关配置 (已接入 TokenRouter · 支持随时在线测通/切换)", open=False):
+            with gr.Row():
+                ui_base_url = gr.Textbox(
+                    label="API Base URL",
+                    value=os.getenv("LLM_BASE_URL", "https://api.tokenrouter.com/v1"),
+                    placeholder="https://api.tokenrouter.com/v1 或 https://api.deepseek.com/v1",
+                    scale=5,
+                )
+                ui_model = gr.Textbox(
+                    label="模型名称 (Model)",
+                    value=os.getenv("LLM_MODEL", "z-ai/glm-5.3-free"),
+                    placeholder="z-ai/glm-5.3-free 或 deepseek-chat",
+                    scale=4,
+                )
+                ui_api_key = gr.Textbox(
+                    label="API Key",
+                    value=default_key,
+                    type="password",
+                    placeholder="sk-...",
+                    scale=5,
+                )
+            with gr.Row():
+                ui_test_btn = gr.Button("🔌 测试大模型实时连通性", size="sm")
+                ui_save_btn = gr.Button("💾 保存并应用配置到 .env", variant="primary", size="sm", elem_classes=["claude-primary-btn"])
+            ui_status_info = gr.Markdown(f"当前已绑定模型：`{os.getenv('LLM_MODEL', 'z-ai/glm-5.3-free')}` | Key 状态：`{masked_key}`")
+
+            ui_test_btn.click(
+                fn=test_llm_connection,
+                inputs=[ui_base_url, ui_api_key, ui_model],
+                outputs=[ui_status_info],
+            )
+            ui_save_btn.click(
+                fn=save_llm_config,
+                inputs=[ui_base_url, ui_api_key, ui_model],
+                outputs=[ui_status_info],
+            )
 
         # ==================== 1. 主输入交互卡片 ====================
         with gr.Group(elem_classes=["claude-card"]):

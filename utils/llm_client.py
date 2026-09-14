@@ -13,6 +13,8 @@ from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
+_root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(_root_dir, ".env"), override=True)
 load_dotenv()
 
 # 清理代理环境变量，确保网络直连，防止本地代理工具干扰
@@ -158,10 +160,9 @@ class LLMClient:
 
     def _init_session(self):
         self.session = requests.Session()
-        # trust_env=True 会在存在系统代理时自动使用；若因本地代理异常导致连接失败，
-        # call() 内会捕获并重建为直连 Session（no_proxy 直连），两者互相兜底。
-        self.session.trust_env = True
-        self.session.proxies = {}
+        # trust_env=False 强制直连网络，避免 Windows 注册表残留代理导致 SSL/Proxy 报错
+        self.session.trust_env = False
+        self.session.proxies = {"http": None, "https": None}
 
     def _build_headers(self, api_key: str) -> Dict[str, str]:
         """根据 API 格式构建请求头"""
@@ -237,7 +238,7 @@ class LLMClient:
         prompt: str,
         system_prompt: str = "You are a helpful academic research assistant.",
         temperature: float = 0.3,
-        max_retries: int = 5,
+        max_retries: int = 2,
         timeout: Optional[int] = None,
         max_tokens: Optional[int] = None,
     ) -> str:
