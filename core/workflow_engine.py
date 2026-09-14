@@ -26,6 +26,7 @@ class WorkflowStatus(str, Enum):
 
 class WorkflowStep(str, Enum):
     INIT = "init"
+    INTENT_FORMULATION = "intent_formulation"      # 0. 学术意图理解与检索管线规划 (LLM Think First)
     LITERATURE_RETRIEVAL = "literature_retrieval"  # 1. 文献递归检索与初筛
     FEATURE_EXTRACTION = "feature_extraction"      # 2. 核心创新点与要素结构化提取
     OUTLINE_GENERATION = "outline_generation"      # 3. 综述大纲规划 (人工干预关键点)
@@ -36,6 +37,7 @@ class WorkflowStep(str, Enum):
 
 
 STEP_ORDER = [
+    WorkflowStep.INTENT_FORMULATION,
     WorkflowStep.LITERATURE_RETRIEVAL,
     WorkflowStep.FEATURE_EXTRACTION,
     WorkflowStep.OUTLINE_GENERATION,
@@ -214,12 +216,23 @@ class WorkflowEngine:
             },
             "nodes": [
                 {
+                    "id": "node_intent_formulation",
+                    "type": "agent",
+                    "agent": "AcademicIntentAgent",
+                    "displayName": "学术意图理解与检索管线规划 (LLM Think First)",
+                    "tools": ["IntentPlannerLLM", "DomainOntologyEngine"],
+                    "inputs": ["query", "keywords", "years", "max_papers"],
+                    "outputs": ["intent_plan", "search_queries", "filter_keywords"],
+                    "next": "node_literature_retrieval",
+                    "supportsPause": False,
+                },
+                {
                     "id": "node_literature_retrieval",
                     "type": "agent",
                     "agent": "LiteratureRetrievalAgent",
                     "displayName": "文献自动化检索与递归筛选",
-                    "tools": ["OpenAlexAPI", "ArxivAPI", "SemanticRelevanceScorer"],
-                    "inputs": ["query", "keywords", "years", "max_papers"],
+                    "tools": ["OpenAlexAPI", "EuropePMCAPI", "ArxivAPI", "SemanticRelevanceScorer"],
+                    "inputs": ["query", "keywords", "years", "max_papers", "search_queries"],
                     "outputs": ["literature_pool", "filtered_count"],
                     "next": "node_feature_extraction",
                     "supportsPause": True,

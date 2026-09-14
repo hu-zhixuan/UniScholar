@@ -11,12 +11,36 @@
   },
   "nodes": [
     {
+      "id": "node_intent_formulation",
+      "type": "agent",
+      "agent": "AcademicIntentAgent",
+      "displayName": "学术意图理解与检索管线规划 (LLM Think First)",
+      "tools": [
+        "IntentPlannerLLM",
+        "DomainOntologyEngine"
+      ],
+      "inputs": [
+        "query",
+        "keywords",
+        "years",
+        "max_papers"
+      ],
+      "outputs": [
+        "intent_plan",
+        "search_queries",
+        "filter_keywords"
+      ],
+      "next": "node_literature_retrieval",
+      "supportsPause": false
+    },
+    {
       "id": "node_literature_retrieval",
       "type": "agent",
       "agent": "LiteratureRetrievalAgent",
       "displayName": "文献自动化检索与递归筛选",
       "tools": [
         "OpenAlexAPI",
+        "EuropePMCAPI",
         "ArxivAPI",
         "SemanticRelevanceScorer"
       ],
@@ -24,7 +48,8 @@
         "query",
         "keywords",
         "years",
-        "max_papers"
+        "max_papers",
+        "search_queries"
       ],
       "outputs": [
         "literature_pool",

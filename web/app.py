@@ -20,6 +20,7 @@ if hasattr(sys.stdout, "reconfigure"):
 import gradio as gr
 
 from agents.data_agent import DataAgent
+from agents.intent_agent import IntentAgent
 from agents.literature_agent import LiteratureAgent
 from agents.reference_agent import ReferenceAgent
 from agents.review_agent import PaperFeature, ReviewAgent
@@ -33,6 +34,7 @@ from offline_demo.demo_data import (
 logger = logging.getLogger("UniScholar.WebUI")
 
 engine = WorkflowEngine()
+intent_agent = IntentAgent()
 lit_agent = LiteratureAgent()
 rev_agent = ReviewAgent()
 data_agent = DataAgent()
@@ -44,6 +46,7 @@ current_active_task_id = None
 def render_claude_pipeline(current_step: str, status: str) -> str:
     """生成具有 Claude 质感的优雅工作流 Pipeline 进度卡片"""
     steps = [
+        ("0. 学术意图规划", WorkflowStep.INTENT_FORMULATION.value, "✦"),
         ("1. 文献递归检索", WorkflowStep.LITERATURE_RETRIEVAL.value, "✦"),
         ("2. 核心要素抽取", WorkflowStep.FEATURE_EXTRACTION.value, "✦"),
         ("3. 综述大纲规划", WorkflowStep.OUTLINE_GENERATION.value, "✦"),
@@ -53,7 +56,7 @@ def render_claude_pipeline(current_step: str, status: str) -> str:
     step_keys = [s[1] for s in steps]
     cur_idx = step_keys.index(current_step) if current_step in step_keys else 0
     if status == WorkflowStatus.COMPLETED.value:
-        cur_idx = 4
+        cur_idx = 5
 
     html_items = []
     for idx, (name, key, icon) in enumerate(steps):
@@ -160,24 +163,38 @@ def start_research_flow(query, keywords_str, years, max_papers, pause_hitl, data
     })
     current_active_task_id = state.task_id
 
-    # 1. 检索
+    # 0. 意图理解与规划 (LLM Think First)
     state.status = WorkflowStatus.RUNNING
+    state.current_step = WorkflowStep.INTENT_FORMULATION
+    plan = intent_agent.formulate(query=query, user_keywords=keywords, years=int(years), max_papers=int(max_papers))
+    state.data["intent_plan"] = plan.model_dump()
+    state.completed_steps.append("intent_formulation")
+    engine.save_checkpoint(state)
+
+    # 1. 检索 (使用规划的英文检索词与高敏感度词表)
     state.current_step = WorkflowStep.LITERATURE_RETRIEVAL
-    lit_res = lit_agent.run(query=query, keywords=keywords, years=int(years), max_papers=int(max_papers))
+    lit_res = lit_agent.run(
+        query=query,
+        keywords=keywords,
+        years=int(years),
+        max_papers=int(max_papers),
+        search_queries=plan.search_queries,
+        filter_keywords=plan.filter_keywords,
+    )
     state.data["literature_pool"] = lit_res["papers"]
     state.completed_steps.append("literature_retrieval")
     engine.save_checkpoint(state)
 
     table_rows = format_literature_table(lit_res["papers"])
 
-    # 2. 抽取
+    # 2. 抽取 (包含领域自适应机制)
     state.current_step = WorkflowStep.FEATURE_EXTRACTION
-    features = rev_agent.batch_extract(lit_res["papers"])
+    features = rev_agent.batch_extract(lit_res["papers"], topic=query)
     state.data["extracted_features"] = [f.model_dump() for f in features]
     state.completed_steps.append("feature_extraction")
     engine.save_checkpoint(state)
 
-    # 3. 大纲
+    # 3. 大纲 (领域专属规划)
     state.current_step = WorkflowStep.OUTLINE_GENERATION
     outline_md = rev_agent.generate_review_outline(query, features)
     state.data["review_outline"] = outline_md
@@ -237,7 +254,22 @@ def continue_research_flow(task_id, approved_outline, data_file, refs_text):
 
     # 6. 参考文献国标排版
     state.current_step = WorkflowStep.REFERENCE_FORMAT
-    ref_source = refs_text.strip() if refs_text and refs_text.strip() else get_sample_references_text()
+    if refs_text and refs_text.strip():
+        ref_source = refs_text.strip()
+    elif state.data.get("literature_pool"):
+        pool = state.data.get("literature_pool", [])
+        ref_lines = []
+        for idx, p in enumerate(pool[:15], 1):
+            authors = p.get("authors", [])
+            auth_str = ", ".join(authors) if authors else "佚名"
+            title = p.get("title", "未命名文献")
+            year = p.get("publication_year", 2024)
+            source = p.get("source", "学术期刊")
+            ref_lines.append(f"[{idx}] {auth_str}. {title}. {source}, {year}.")
+        ref_source = "\n".join(ref_lines)
+    else:
+        ref_source = get_sample_references_text()
+
     ref_res = ref_agent.run(ref_source, target_format="GB/T 7714")
     state.data["formatted_references"] = ref_res["formatted_text"]
     state.completed_steps.append("reference_format")
@@ -324,6 +356,7 @@ def save_llm_config(base_url, api_key, model):
     os.environ["LLM_BASE_URL"] = clean_url
     os.environ["LLM_MODEL"] = clean_model
     rev_agent.llm_client = LLMClient()
+    intent_agent.llm_client = LLMClient()
     return f"💾 **配置已成功持久化至 .env 并立即生效！**\n当前已绑定：`{clean_model}` @ `{clean_url}`"
 
 
