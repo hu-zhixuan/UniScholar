@@ -112,6 +112,37 @@ def render_claude_pipeline(current_step: str, status: str) -> str:
     """
 
 
+# ==================== 工作流辅助格式化 ====================
+def format_literature_table(papers):
+    rows = []
+    for idx, p in enumerate(papers, 1):
+        rows.append([
+            idx,
+            p.get("title", "未命名文献"),
+            p.get("publication_year", 2024),
+            p.get("cited_by_count", 0),
+            f"{int(float(p.get('relevance_score', 0.8)) * 100)}%",
+            p.get("source", "OpenAlex"),
+        ])
+    return rows
+
+
+def format_features_markdown(features):
+    if not features:
+        return "*暂无抽取要素*"
+    lines = []
+    for idx, f in enumerate(features, 1):
+        lines.append(f"#### 📄 文献 {idx}：《{f.get('title', '未知文献')}》({f.get('publication_year', 2024)})")
+        lines.append(f"- **研究背景与动机**：{f.get('background', '未注明')}")
+        inno = '; '.join(f.get('core_innovations', [])) if isinstance(f.get('core_innovations'), list) else str(f.get('core_innovations', '未注明'))
+        lines.append(f"- **核心创新突破**：{inno}")
+        lines.append(f"- **研究方法与技术方案**：{f.get('methodology', '未注明')}")
+        conc = '; '.join(f.get('main_conclusions', [])) if isinstance(f.get('main_conclusions'), list) else str(f.get('main_conclusions', '未注明'))
+        lines.append(f"- **主要研究结论**：{conc}")
+        lines.append("")
+    return "\n".join(lines)
+
+
 # ==================== 工作流事件调度 ====================
 def start_research_flow(query, keywords_str, years, max_papers, pause_hitl, data_file, refs_text):
     global current_active_task_id
@@ -136,6 +167,8 @@ def start_research_flow(query, keywords_str, years, max_papers, pause_hitl, data
     state.completed_steps.append("literature_retrieval")
     engine.save_checkpoint(state)
 
+    table_rows = format_literature_table(lit_res["papers"])
+
     # 2. 抽取
     state.current_step = WorkflowStep.FEATURE_EXTRACTION
     features = rev_agent.batch_extract(lit_res["papers"])
@@ -157,10 +190,15 @@ def start_research_flow(query, keywords_str, years, max_papers, pause_hitl, data
         return (
             pipeline_html,
             gr.update(visible=True),   # 唤醒人在回路编辑卡片
-            outline_md,                # 填入生成的大纲
+            table_rows,                # 填入精选文献池表格
+            outline_md,                # 填入生成的大纲初稿
             gr.update(visible=False),  # 成果画布保持隐藏
             "",
             [],
+            "",
+            "",
+            [],
+            "",
             "",
         )
 
@@ -170,7 +208,7 @@ def start_research_flow(query, keywords_str, years, max_papers, pause_hitl, data
 def continue_research_flow(task_id, approved_outline, data_file, refs_text):
     state = engine.load_checkpoint(task_id)
     if not state:
-        return "", gr.update(visible=False), "", gr.update(visible=False), "", [], ""
+        return "", gr.update(visible=False), [], "", gr.update(visible=False), "", [], "", "", [], "", ""
 
     state.data["review_outline"] = approved_outline
     state.status = WorkflowStatus.RUNNING
@@ -208,27 +246,24 @@ def continue_research_flow(task_id, approved_outline, data_file, refs_text):
     state.current_step = WorkflowStep.COMPLETED
     engine.save_checkpoint(state)
 
-    final_report = f"""{state.data.get('review_draft', '')}
-
----
-
-{state.data.get('data_analysis_report', '')}
-"""
-    formatted_citations = f"""```text
-{state.data.get('formatted_references', '')}
-```
-"""
-
+    table_rows = format_literature_table(state.data.get("literature_pool", []))
+    features_md = format_features_markdown(state.data.get("extracted_features", []))
     pipeline_html = render_claude_pipeline("completed", WorkflowStatus.COMPLETED.value)
+    yuanjing_config = json.dumps(engine.export_yuanjing_workflow_config(), ensure_ascii=False, indent=2)
 
     return (
         pipeline_html,
         gr.update(visible=False),  # 隐藏人在回路卡片
+        table_rows,                # 保留文献表格
         approved_outline,
         gr.update(visible=True),   # 展开成果画布
-        final_report,
-        data_res["charts"],
-        formatted_citations,
+        state.data.get("review_draft", ""),
+        table_rows,                # 成果画布中的文献表格
+        features_md,               # 抽取要素 Markdown
+        data_res["report_markdown"],# 数据分析报告
+        data_res["charts"],        # 实验图表
+        state.data.get("formatted_references", ""),
+        yuanjing_config,           # 元景配置文件
     )
 
 
@@ -621,36 +656,54 @@ def build_ui():
                 <span>✦ 工作流已在检查点挂起 (Human-in-the-Loop Checkpoint)</span>
             </div>
             <div style="font-size: 13px; color: #6E5325; margin-bottom: 12px; line-height: 1.5;">
-                智能体已完成多源文献检索与创新点提炼，并为您规划了初步综述大纲。<b>您可以直接在下方文本框中在线润色微调</b>，确认无误后点击右侧按钮无损续跑！
+                智能体已完成多源文献检索与实体去重，为您精筛出<b>高质量学术文献池</b>，并规划了<b>综述大纲初稿</b>。请学者审阅文献池并在线润色大纲，确认无误后点击右侧按钮无损续跑！
             </div>
             """)
-            hitl_outline_editor = gr.Textbox(label="文献综述大纲初稿 (支持在线编辑)", lines=8)
+
+            # 呈现精准文献池
+            hitl_papers_table = gr.Dataframe(
+                headers=["序号", "论文标题", "年份", "被引频次", "相关度得分", "数据源"],
+                datatype=["number", "str", "number", "number", "str", "str"],
+                label="📚 智能体精筛学术文献池 (Literature Pool)",
+                wrap=True,
+            )
+
+            hitl_outline_editor = gr.Textbox(label="💡 文献综述大纲规划初稿 (支持在线编辑增删章节)", lines=8)
             with gr.Row():
                 gr.Markdown("*(提示：修改后的内容将作为最新检查点保存，下游节点将基于您的修改继续合成正文)*")
-                resume_flow_btn = gr.Button("确认大纲并继续执行 ➔", variant="primary", elem_classes=["claude-resume-btn"], size="lg")
+                resume_flow_btn = gr.Button("确认大纲并生成最终成果画布 ➔", variant="primary", elem_classes=["claude-resume-btn"], size="lg")
 
-        # ==================== 3. 最终成果大画布 ====================
+        # ==================== 3. 最终科研成果大画布 ====================
         with gr.Group(visible=False, elem_classes=["claude-canvas"]) as result_workspace:
             gr.HTML("""
             <div style="font-size: 16px; font-weight: 700; color: #2D2A26; margin-bottom: 16px; border-bottom: 1.5px solid #E8E4DB; padding-bottom: 8px; display: flex; justify-content: space-between;">
-                <span>📑 UniScholar 全流程科研综合成果画布</span>
+                <span>📑 UniScholar 全流程科研综合成果画布 (All Research Deliverables)</span>
                 <span style="font-size: 12px; color: #2D6A3E; font-weight: 500;">✓ 已通过 Citation Validator 真实文献防幻觉检验</span>
             </div>
             """)
 
-            with gr.Row():
-                # 左栏：文献综述正文 (纯净学术阅读排版)
-                with gr.Column(scale=6):
-                    gr.Markdown("### 📄 文献综述与创新点提炼稿")
+            with gr.Tabs():
+                with gr.TabItem("📄 学术文献综述与选题长文"):
                     final_report_md = gr.Markdown()
 
-                # 右栏：实验数据科研图表 + 国标参考文献
-                with gr.Column(scale=6):
-                    gr.Markdown("### 📊 实验数据初步统计与科研图表")
-                    charts_gallery = gr.Gallery(label="Matplotlib 渲染科研图表", columns=2, height="auto")
+                with gr.TabItem("📚 精选学术文献池与特征萃取"):
+                    result_papers_table = gr.Dataframe(
+                        headers=["序号", "论文标题", "年份", "被引频次", "相关度得分", "数据源"],
+                        datatype=["number", "str", "number", "number", "str", "str"],
+                        label="📚 高相关精选文献池 (精准去重与语义过滤后)",
+                        wrap=True,
+                    )
+                    features_summary_md = gr.Markdown()
 
-                    gr.Markdown("### 📐 规范参考文献列表 (GB/T 7714-2015)")
+                with gr.TabItem("📊 实验数据初步统计与科研图表"):
+                    data_analysis_md = gr.Markdown()
+                    charts_gallery = gr.Gallery(label="Matplotlib 渲染科研图表 (折线图 / 箱线图 / 直方图)", columns=2, height="auto")
+
+                with gr.TabItem("📐 规范参考文献库 (GB/T 7714-2015)"):
                     formatted_citations_box = gr.Markdown()
+
+                with gr.TabItem("⚙️ 联通元景工作流标准配置与执行轨迹"):
+                    workflow_meta_json = gr.Code(language="json", label="workflow_config.json (元景万悟 DAG 编排格式)")
 
         # ==================== 4. 底部快速单项工具抽屉 (折叠收纳) ====================
         with gr.Accordion("专家单项工具箱 (文献初筛 / 数据绘图 / 国标排版独立测试)", open=False):
@@ -694,11 +747,16 @@ def build_ui():
             outputs=[
                 pipeline_status_component,
                 hitl_card,
+                hitl_papers_table,
                 hitl_outline_editor,
                 result_workspace,
                 final_report_md,
+                result_papers_table,
+                features_summary_md,
+                data_analysis_md,
                 charts_gallery,
                 formatted_citations_box,
+                workflow_meta_json,
             ],
         )
 
@@ -708,11 +766,16 @@ def build_ui():
             outputs=[
                 pipeline_status_component,
                 hitl_card,
+                hitl_papers_table,
                 hitl_outline_editor,
                 result_workspace,
                 final_report_md,
+                result_papers_table,
+                features_summary_md,
+                data_analysis_md,
                 charts_gallery,
                 formatted_citations_box,
+                workflow_meta_json,
             ],
         )
 
