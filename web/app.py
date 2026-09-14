@@ -232,12 +232,91 @@ def continue_research_flow(task_id, approved_outline, data_file, refs_text):
     )
 
 
-# ==================== 构建 Claude 风格 UI ====================
-def build_ui():
-    # 彻底抹平浏览器暗色模式，强制统一为 Claude 标志性的暖燕麦色与陶土棕体系
-    claude_css = """
-    /* 强制抹除系统暗色冲突，全站统一暖雅底色 */
-    :root, .dark, body, .gradio-container {
+# ==================== Claude 标志性暖雅学术美学体系 ====================
+def get_claude_theme():
+    """构建严格匹配 Anthropic Claude 风格的 Warm Linen & Terracotta 主题"""
+    return gr.themes.Soft(
+        primary_hue=gr.themes.colors.orange,
+        neutral_hue=gr.themes.colors.stone,
+    ).set(
+        # 页面与卡片底色 (彻底覆盖暗色变量，杜绝黑白混杂)
+        body_background_fill="#FAF9F5",
+        body_background_fill_dark="#FAF9F5",
+        background_fill_primary="#FFFFFF",
+        background_fill_primary_dark="#FFFFFF",
+        background_fill_secondary="#F5F2EB",
+        background_fill_secondary_dark="#F5F2EB",
+
+        # 卡片与组件边框与背景
+        block_background_fill="#FFFFFF",
+        block_background_fill_dark="#FFFFFF",
+        block_border_color="#E8E4DB",
+        block_border_color_dark="#E8E4DB",
+        block_label_text_color="#6E685E",
+        block_label_text_color_dark="#6E685E",
+        block_title_text_color="#2D2A26",
+        block_title_text_color_dark="#2D2A26",
+
+        # 字体与排版颜色 (柔和炭黑，非纯黑刺眼)
+        body_text_color="#2D2A26",
+        body_text_color_dark="#2D2A26",
+        body_text_color_subdued="#79746C",
+        body_text_color_subdued_dark="#79746C",
+
+        # 输入控件 (纯白底、暖米边框、陶土色聚焦环)
+        input_background_fill="#FFFFFF",
+        input_background_fill_dark="#FFFFFF",
+        input_border_color="#E2DDD5",
+        input_border_color_dark="#E2DDD5",
+        input_border_color_focus="#CC785C",
+        input_border_color_focus_dark="#CC785C",
+        input_placeholder_color="#A8A196",
+        input_placeholder_color_dark="#A8A196",
+
+        # 克劳德陶土珊瑚色主按钮 (#CC785C)
+        button_primary_background_fill="#CC785C",
+        button_primary_background_fill_dark="#CC785C",
+        button_primary_background_fill_hover="#B8654B",
+        button_primary_background_fill_hover_dark="#B8654B",
+        button_primary_text_color="#FFFFFF",
+        button_primary_text_color_dark="#FFFFFF",
+
+        # 次级按钮
+        button_secondary_background_fill="#FFFFFF",
+        button_secondary_background_fill_dark="#FFFFFF",
+        button_secondary_background_fill_hover="#F7F4EE",
+        button_secondary_background_fill_hover_dark="#F7F4EE",
+        button_secondary_border_color="#E2DDD5",
+        button_secondary_border_color_dark="#E2DDD5",
+        button_secondary_text_color="#4D4740",
+        button_secondary_text_color_dark="#4D4740",
+
+        # 交互组件 (单选、复选、滑块)
+        checkbox_background_color="#FFFFFF",
+        checkbox_background_color_dark="#FFFFFF",
+        checkbox_background_color_selected="#CC785C",
+        checkbox_background_color_selected_dark="#CC785C",
+        checkbox_border_color="#D1CABE",
+        checkbox_border_color_dark="#D1CABE",
+        slider_color="#CC785C",
+        slider_color_dark="#CC785C",
+
+        # 装饰与强调线条
+        border_color_primary="#E8E4DB",
+        border_color_primary_dark="#E8E4DB",
+        border_color_accent="#CC785C",
+        border_color_accent_dark="#CC785C",
+        color_accent_soft="#FDF3EE",
+        color_accent_soft_dark="#FDF3EE",
+    )
+
+
+def get_claude_css():
+    """完整注入 CSS 样式表，双重兜底强制消除 Gradio 暗色残留并应用 Claude 美学"""
+    return """
+    /* 1. 强制系统与根节点锁定浅色暖调 */
+    :root, html, body, .gradio-container, gradio-app, .dark, [class*="dark"] {
+        color-scheme: light !important;
         --body-background-fill: #FAF9F5 !important;
         --background-fill-primary: #FFFFFF !important;
         --background-fill-secondary: #F4F1EA !important;
@@ -254,24 +333,38 @@ def build_ui():
         --button-primary-background-fill-hover: #B8654B !important;
         --button-primary-text-color: #FFFFFF !important;
         --block-radius: 12px !important;
-        --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif !important;
+        background-color: #FAF9F5 !important;
+        color: #2D2A26 !important;
     }
 
+    /* 2. 彻底抹平所有带有 dark 类的子元素深色背景，杜绝“一块黑一块白” */
+    .dark div, .dark section, .dark main, .dark form, .dark span, .dark p, .dark label,
+    .dark .block, .dark .gr-box, .dark .gr-panel, .dark .gr-input,
+    .dark textarea, .dark input, .dark select,
+    gradio-app.dark .block, gradio-app.dark textarea, gradio-app.dark input {
+        background-color: #FFFFFF !important;
+        color: #2D2A26 !important;
+        border-color: #E2DDD5 !important;
+    }
+
+    /* 3. 页面顶层容器与排版居中 */
     body, .gradio-container {
         background-color: #FAF9F5 !important;
         color: #2D2A26 !important;
-        max-width: 1240px !important;
+        max-width: 1260px !important;
         margin: 0 auto !important;
-        padding-top: 20px !important;
+        padding-top: 24px !important;
+        padding-bottom: 60px !important;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif !important;
     }
 
-    /* 顶部精致暖雅 Header */
+    /* 4. 顶部 Claude 品牌导航栏 */
     .claude-nav {
         display: flex;
         justify-content: space-between;
         align-items: center;
         padding: 18px 24px;
-        background: #FFFFFF;
+        background: #FFFFFF !important;
         border-radius: 16px;
         border: 1px solid #E8E4DB;
         box-shadow: 0 2px 10px rgba(0,0,0,0.02);
@@ -280,27 +373,27 @@ def build_ui():
     .claude-brand {
         font-size: 20px;
         font-weight: 700;
-        color: #2D2A26;
+        color: #2D2A26 !important;
         display: flex;
         align-items: center;
         gap: 10px;
         letter-spacing: -0.3px;
     }
     .claude-logo-icon {
-        color: #CC785C;
+        color: #CC785C !important;
         font-size: 22px;
     }
     .claude-tag {
         font-size: 11px;
-        background: #FDF3EE;
-        color: #CC785C;
+        background: #FDF3EE !important;
+        color: #CC785C !important;
         padding: 3px 10px;
         border-radius: 16px;
         font-weight: 600;
         border: 1px solid #F5C6B5;
     }
 
-    /* 核心输入卡片 */
+    /* 5. 核心输入卡片 */
     .claude-card {
         background: #FFFFFF !important;
         border: 1px solid #E8E4DB !important;
@@ -310,7 +403,7 @@ def build_ui():
         margin-bottom: 20px !important;
     }
 
-    /* 克劳德经典陶土色主按钮 */
+    /* 6. 克劳德陶土色主按钮 */
     .claude-primary-btn {
         background: #CC785C !important;
         color: #FFFFFF !important;
@@ -320,6 +413,7 @@ def build_ui():
         font-size: 15px !important;
         box-shadow: 0 4px 12px rgba(204,120,92,0.25) !important;
         transition: all 0.2s ease !important;
+        cursor: pointer !important;
     }
     .claude-primary-btn:hover {
         background: #B8654B !important;
@@ -327,7 +421,7 @@ def build_ui():
         box-shadow: 0 6px 16px rgba(204,120,92,0.35) !important;
     }
 
-    /* 人在回路温润琥珀卡片 */
+    /* 7. 人在回路温润琥珀卡片 */
     .claude-hitl-box {
         background: #FEFBF4 !important;
         border: 1.5px solid #EBDCC2 !important;
@@ -343,8 +437,11 @@ def build_ui():
         font-weight: 600 !important;
         box-shadow: 0 4px 12px rgba(204,120,92,0.25) !important;
     }
+    .claude-resume-btn:hover {
+        background: #B8654B !important;
+    }
 
-    /* 成果画布 */
+    /* 8. 成果画布 */
     .claude-canvas {
         background: #FFFFFF !important;
         border: 1px solid #E8E4DB !important;
@@ -353,32 +450,109 @@ def build_ui():
         box-shadow: 0 4px 20px rgba(0,0,0,0.02) !important;
     }
 
-    /* 优雅排版微调 */
+    /* 9. 输入框和标签排版 */
     label span {
         color: #6E685E !important;
         font-weight: 600 !important;
         font-size: 12.5px !important;
     }
-    textarea, input {
+    textarea, input[type="text"], input[type="number"] {
         border-color: #E2DDD5 !important;
         background-color: #FFFFFF !important;
         color: #2D2A26 !important;
+        border-radius: 8px !important;
     }
+    textarea:focus, input:focus {
+        border-color: #CC785C !important;
+        box-shadow: 0 0 0 1.5px rgba(204,120,92,0.25) !important;
+    }
+
+    /* 10. Markdown 学术排版微调 */
+    .prose, .markdown {
+        color: #2D2A26 !important;
+        line-height: 1.75 !important;
+    }
+    .prose h1, .prose h2, .prose h3, .markdown h1, .markdown h2, .markdown h3 {
+        color: #2D2A26 !important;
+        font-weight: 700 !important;
+        letter-spacing: -0.2px;
+    }
+    .prose hr, .markdown hr {
+        border-color: #E8E4DB !important;
+    }
+
+    /* 11. 隐藏无用的 Gradio 底部 */
     footer { display: none !important; }
     """
 
-    head_script = """
-    <script>
-        document.documentElement.classList.remove('dark');
-        document.body.classList.remove('dark');
-        window.addEventListener('DOMContentLoaded', () => {
+
+def get_claude_js():
+    """客户端 JavaScript：强制清理暗色模式，并实时监听阻止 dark 类被重新注入"""
+    return """
+    () => {
+        try {
+            localStorage.setItem('gradio_theme', 'light');
+        } catch (e) {}
+
+        function purgeDark() {
             document.documentElement.classList.remove('dark');
             document.body.classList.remove('dark');
-        });
-    </script>
+            const apps = document.querySelectorAll('gradio-app');
+            apps.forEach(app => app.classList.remove('dark'));
+        }
+
+        purgeDark();
+
+        if (window.MutationObserver) {
+            const observer = new MutationObserver(() => {
+                purgeDark();
+            });
+            observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+            observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+        }
+    }
     """
 
-    with gr.Blocks(title="UniScholar - 通用AI科研智能体", head=head_script, css=claude_css) as demo:
+
+def get_claude_head():
+    """向 HTML Head 注入元标签和高优先级样式，确保浏览器首屏即以纯粹浅色渲染"""
+    return """
+    <meta name="color-scheme" content="light">
+    <style>
+        :root, html, body {
+            color-scheme: light !important;
+            background-color: #FAF9F5 !important;
+        }
+    </style>
+    """
+
+
+def launch_claude_ui(demo, server_name="127.0.0.1", server_port=7860, inbrowser=False):
+    """统一配置 Claude 主题、CSS、JS 与 Head，启动 Gradio 6 服务"""
+    theme = get_claude_theme()
+    css = get_claude_css()
+    js = get_claude_js()
+    head = get_claude_head()
+
+    return demo.launch(
+        server_name=server_name,
+        server_port=server_port,
+        inbrowser=inbrowser,
+        theme=theme,
+        css=css,
+        js=js,
+        head=head,
+    )
+
+
+# ==================== 构建 Claude 风格 UI ====================
+def build_ui():
+    claude_css = get_claude_css()
+
+    with gr.Blocks(title="UniScholar - 通用AI科研智能体") as demo:
+        # DOM 内联注入样式表，确保即使外部资源加载延迟，界面也绝无黑白混杂
+        gr.HTML(f"<style>{claude_css}</style>")
+
         gr.HTML("""
         <div class="claude-nav">
             <div class="claude-brand">
@@ -547,4 +721,5 @@ def build_ui():
 
 if __name__ == "__main__":
     demo = build_ui()
-    demo.launch(server_name="127.0.0.1", server_port=7860, inbrowser=False)
+    launch_claude_ui(demo, server_name="127.0.0.1", server_port=7860, inbrowser=False)
+
