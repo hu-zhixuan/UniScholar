@@ -502,7 +502,7 @@ def get_claude_css():
         box-shadow: 0 0 0 1.5px rgba(204,120,92,0.25) !important;
     }
 
-    /* 10. Markdown 学术排版微调 */
+    /* 10. Markdown 学术排版与代码块高质感渲染 (彻底杜绝黑底方块) */
     .prose, .markdown {
         color: #2D2A26 !important;
         line-height: 1.75 !important;
@@ -514,6 +514,69 @@ def get_claude_css():
     }
     .prose hr, .markdown hr {
         border-color: #E8E4DB !important;
+    }
+
+    /* 严谨的学术表格样式 */
+    .prose table, .markdown table, table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        margin: 16px 0 !important;
+        background-color: #FFFFFF !important;
+        border: 1px solid #E8E4DB !important;
+        border-radius: 8px !important;
+        overflow: hidden !important;
+    }
+    .prose th, .markdown th, th {
+        background-color: #F8F5EE !important;
+        color: #2D2A26 !important;
+        font-weight: 700 !important;
+        font-size: 13px !important;
+        padding: 10px 14px !important;
+        border-bottom: 2px solid #E2DDD5 !important;
+        text-align: left !important;
+    }
+    .prose td, .markdown td, td {
+        padding: 10px 14px !important;
+        border-bottom: 1px solid #EFECE6 !important;
+        background-color: #FFFFFF !important;
+        color: #2D2A26 !important;
+        font-size: 13px !important;
+    }
+    .prose tr:hover td, .markdown tr:hover td, tr:hover td {
+        background-color: #FAF8F5 !important;
+    }
+
+    /* 行内代码与引用标签 (解决黑底方块Bug，赋予暖卡其学术高亮) */
+    code, pre, .prose code, .markdown code, table code, span code {
+        background-color: #F4F0E8 !important;
+        color: #9A4122 !important;
+        padding: 2px 6px !important;
+        border-radius: 5px !important;
+        font-size: 0.88em !important;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace !important;
+        border: 1px solid #E8DFD1 !important;
+        font-weight: 500 !important;
+    }
+    pre code {
+        padding: 0 !important;
+        border: none !important;
+        background-color: transparent !important;
+    }
+    pre {
+        background-color: #FAF8F5 !important;
+        border: 1px solid #E8E4DB !important;
+        border-radius: 8px !important;
+        padding: 14px !important;
+    }
+
+    /* 学术引用块 */
+    .prose blockquote, .markdown blockquote, blockquote {
+        border-left: 3.5px solid #CC785C !important;
+        background: #FBF9F4 !important;
+        padding: 10px 16px !important;
+        margin: 12px 0 !important;
+        border-radius: 0 8px 8px 0 !important;
+        color: #59534B !important;
     }
 
     /* 11. 隐藏无用的 Gradio 底部 */

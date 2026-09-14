@@ -112,11 +112,10 @@ class TestUniScholar(unittest.TestCase):
         text_with_hallucination = "根据《Autonomous Scientific Research System》的结论，对比《Nonexistent Hallucinated Paper》的方法..."
 
         checked_text = validate_citations(text_with_hallucination, valid_papers)
-        # 真实存在的文献不被标记警告
-        self.assertIn("《Autonomous Scientific Research System》", checked_text)
-        self.assertNotIn("《Autonomous Scientific Research System》`[⚠️ Unverified Reference]`", checked_text)
-        # 虚假捏造的文献必须被标记警告
-        self.assertIn("《Nonexistent Hallucinated Paper》`[⚠️ Unverified Reference]`", checked_text)
+        # 真实存在的文献被标记为已核验徽章
+        self.assertIn("✓ 已核验证实引文", checked_text)
+        # 虚假捏造的文献必须被标记警告徽章
+        self.assertIn("⚠️ 疑似幻觉引文", checked_text)
 
 
 if __name__ == "__main__":

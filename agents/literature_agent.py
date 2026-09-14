@@ -69,6 +69,9 @@ def calculate_relevance_score(
             matched_terms += 1
             score += 1.0 + math.log(1.0 + t_score)
 
+    if matched_terms == 0:
+        return 0.0
+
     term_coverage = matched_terms / max(1, len(tokens))
     normalized_score = min(0.98, (score / (len(tokens) * 3.0)) * 0.5 + term_coverage * 0.5)
     return max(0.20, round(normalized_score, 3))
