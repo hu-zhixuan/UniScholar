@@ -66,8 +66,16 @@ def generate_technical_proposal_files():
 
     # 3. 渲染为排版精美的 HTML 并导出为 PDF
     md_content = md_file.read_text(encoding="utf-8")
-    md = MarkdownIt('commonmark').enable('table').enable('strikethrough')
-    body_html = md.render(md_content)
+    
+    # 剥离前置封面标题及元数据，由 HTML 模板第一页专门独立渲染封面，第二页直接从摘要开始
+    summary_pos = md_content.find("## 摘要 (Executive Summary)")
+    if summary_pos != -1:
+        pdf_md = md_content[summary_pos:]
+    else:
+        pdf_md = md_content
+        
+    md = MarkdownIt('commonmark', {'html': True}).enable('table').enable('strikethrough')
+    body_html = md.render(pdf_md)
     
     # 注入专业红头学术及企业工程报告 CSS 样式
     html_doc = f"""<!DOCTYPE html>
@@ -194,12 +202,14 @@ h2 {{
   padding-left: 10px;
   margin-top: 24px;
   margin-bottom: 12px;
+  page-break-after: avoid;
 }}
 h3 {{
   font-size: 11.5pt;
   color: #0F172A;
   margin-top: 18px;
   margin-bottom: 8px;
+  page-break-after: avoid;
 }}
 p {{
   margin: 0 0 10px 0;
@@ -229,8 +239,11 @@ blockquote {{
 table {{
   width: 100%;
   border-collapse: collapse;
-  margin: 16px 0;
+  margin: 14px 0;
   font-size: 9.5pt;
+  page-break-inside: auto;
+}}
+tr {{
   page-break-inside: avoid;
 }}
 th {{
@@ -282,6 +295,398 @@ hr {{
   border: none;
   border-top: 1px solid #E2E8F0;
   margin: 24px 0;
+}}
+
+/* 自定义可视化组件与图表卡片样式 */
+.no-print, .no-pdf {{
+  display: none !important;
+}}
+
+.visual-card {{
+  background: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  border-left: 4px solid #1E3A8A;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin: 18px 0;
+  page-break-inside: avoid;
+}}
+.visual-title {{
+  font-size: 11pt;
+  font-weight: 700;
+  color: #0F172A;
+  margin-bottom: 12px;
+}}
+
+/* 统计进度条 */
+.stat-bar-container {{
+  margin: 10px 0;
+}}
+.stat-bar-label {{
+  display: flex;
+  justify-content: space-between;
+  font-size: 9.5pt;
+  margin-bottom: 4px;
+}}
+.stat-progress-bg {{
+  background: #E2E8F0;
+  border-radius: 12px;
+  height: 20px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}}
+.stat-progress-fill {{
+  height: 100%;
+  color: #FFFFFF;
+  font-size: 8.5pt;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 10px;
+  box-sizing: border-box;
+}}
+.red-fill {{
+  background: linear-gradient(90deg, #F87171, #E60012);
+}}
+.blue-fill {{
+  background: linear-gradient(90deg, #60A5FA, #2563EB);
+}}
+.stat-detail-list {{
+  font-size: 9pt;
+  color: #475569;
+  line-height: 1.5;
+  margin-top: 4px;
+}}
+
+/* 4层架构卡片 */
+.architecture-deck {{
+  margin: 18px 0;
+  page-break-inside: avoid;
+}}
+.arch-card {{
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  padding: 12px 16px;
+  margin-bottom: 4px;
+  background: #FFFFFF;
+}}
+.arch-card.layer-app {{
+  border-left: 5px solid #2563EB;
+  background: #F8FAFC;
+}}
+.arch-card.layer-orch {{
+  border-left: 5px solid #4F46E5;
+  background: #F8FAFC;
+}}
+.arch-card.layer-agents {{
+  border-left: 5px solid #059669;
+  background: #F8FAFC;
+}}
+.arch-card.layer-infra {{
+  border-left: 5px solid #E60012;
+  background: #F8FAFC;
+}}
+.arch-tag {{
+  font-weight: 700;
+  font-size: 10.5pt;
+  color: #0F172A;
+  margin-bottom: 6px;
+}}
+.arch-body {{
+  font-size: 9pt;
+  color: #334155;
+  line-height: 1.5;
+}}
+.arch-arrow {{
+  text-align: center;
+  font-size: 8.5pt;
+  color: #64748B;
+  font-weight: 600;
+  margin: 4px 0;
+}}
+
+/* 状态机管线 Pipeline */
+.pipeline-container {{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 16px 0;
+  padding: 14px;
+  background: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  border-radius: 8px;
+  page-break-inside: avoid;
+}}
+.pipeline-step {{
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  padding: 6px 10px;
+  min-width: 85px;
+  text-align: center;
+}}
+.pipeline-step.hitl-step {{
+  border-color: #EF4444;
+  background: #FEF2F2;
+}}
+.pipeline-step.success-step {{
+  border-color: #10B981;
+  background: #ECFDF5;
+}}
+.step-badge {{
+  font-size: 8pt;
+  font-weight: 700;
+  color: #1E3A8A;
+  margin-bottom: 2px;
+}}
+.step-badge.red {{
+  color: #B91C1C;
+}}
+.step-badge.green {{
+  color: #047857;
+}}
+.step-name {{
+  font-size: 8.5pt;
+  color: #1E293B;
+  font-weight: 600;
+}}
+.p-arrow {{
+  color: #94A3B8;
+  font-weight: 800;
+  font-size: 11pt;
+}}
+
+/* 人在回路漏斗 */
+.funnel-container {{
+  margin: 16px 0;
+  page-break-inside: avoid;
+}}
+.funnel-stage {{
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  background: #FFFFFF;
+  padding: 12px 16px;
+}}
+.funnel-header {{
+  font-weight: 700;
+  font-size: 10pt;
+  color: #0F172A;
+  margin-bottom: 6px;
+}}
+.funnel-arrow {{
+  text-align: center;
+  color: #64748B;
+  font-size: 9pt;
+  margin: 6px 0;
+}}
+.funnel-box.hitl-box {{
+  background: #FEF2F2;
+  border: 1px solid #FCA5A5;
+  border-left: 4px solid #E60012;
+  border-radius: 4px;
+  padding: 10px 14px;
+  font-size: 9pt;
+  color: #7F1D1D;
+  line-height: 1.5;
+}}
+
+/* 数学公式卡片 */
+.formula-card {{
+  background: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  border-left: 4px solid #2563EB;
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin: 16px 0;
+  page-break-inside: avoid;
+}}
+.formula-title {{
+  font-weight: 700;
+  font-size: 10.5pt;
+  color: #1E3A8A;
+  margin-bottom: 10px;
+}}
+.formula-math {{
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-family: "Cambria Math", "Georgia", "Times New Roman", serif;
+  font-size: 11pt;
+  text-align: center;
+  color: #0F172A;
+  font-weight: 600;
+  margin-bottom: 10px;
+  letter-spacing: 0.5px;
+}}
+.formula-notes {{
+  font-size: 9pt;
+  color: #475569;
+  line-height: 1.55;
+}}
+
+/* 联通元景万悟对接 Deck */
+.integration-deck {{
+  display: flex;
+  gap: 12px;
+  margin: 16px 0;
+  page-break-inside: avoid;
+}}
+.integ-card {{
+  flex: 1;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-top: 3px solid #E60012;
+  border-radius: 6px;
+  padding: 12px 14px;
+}}
+.integ-title {{
+  font-weight: 700;
+  font-size: 10pt;
+  color: #0F172A;
+  margin-bottom: 6px;
+}}
+.integ-body {{
+  font-size: 8.5pt;
+  color: #334155;
+  line-height: 1.5;
+}}
+
+/* TokenRouter 网格 */
+.router-grid {{
+  display: flex;
+  gap: 12px;
+  margin: 16px 0;
+  page-break-inside: avoid;
+}}
+.router-card {{
+  flex: 1;
+  background: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  border-top: 3px solid #2563EB;
+  border-radius: 6px;
+  padding: 12px 14px;
+}}
+.router-header {{
+  font-weight: 700;
+  font-size: 9.5pt;
+  color: #1E3A8A;
+  margin-bottom: 6px;
+}}
+.router-body {{
+  font-size: 8.5pt;
+  color: #334155;
+  line-height: 1.5;
+}}
+
+/* Citation Validator 校验流程 */
+.validator-container {{
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0;
+  padding: 12px;
+  background: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  border-radius: 8px;
+  page-break-inside: avoid;
+}}
+.val-col {{
+  flex: 1;
+}}
+.val-box {{
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 8.5pt;
+  line-height: 1.45;
+  color: #1E293B;
+}}
+.val-col-arrow {{
+  color: #64748B;
+  font-weight: 800;
+  font-size: 12pt;
+}}
+
+/* 引文徽章 */
+.citation-badge {{
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-size: 7.5pt;
+  font-weight: 700;
+  margin-left: 4px;
+  vertical-align: middle;
+}}
+.citation-badge.verified {{
+  background: #DCFCE7;
+  color: #15803D;
+  border: 1px solid #86EFAC;
+}}
+.citation-badge.warning {{
+  background: #FEF3C7;
+  color: #B45309;
+  border: 1px solid #FCD34D;
+}}
+
+/* 团队卡片 */
+.team-deck {{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0;
+  page-break-inside: avoid;
+}}
+.team-member-card {{
+  width: calc(50% - 6px);
+  box-sizing: border-box;
+  background: #FFFFFF;
+  border: 1px solid #CBD5E1;
+  border-top: 3px solid #1E3A8A;
+  border-radius: 6px;
+  padding: 12px 14px;
+}}
+.tm-role {{
+  font-size: 8pt;
+  font-weight: 700;
+  color: #E60012;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
+}}
+.tm-name {{
+  font-size: 11pt;
+  font-weight: 800;
+  color: #0F172A;
+  margin-bottom: 6px;
+}}
+.tm-title {{
+  font-size: 8.5pt;
+  color: #64748B;
+  font-weight: 500;
+}}
+.tm-desc {{
+  font-size: 8.5pt;
+  color: #475569;
+  line-height: 1.45;
+}}
+
+/* 分页控制与首元素间距 */
+.main-content > h1:first-child,
+.main-content > h2:first-of-type {{
+  font-size: 18pt;
+  color: #0F172A;
+  border-bottom: 2.5px solid #E60012;
+  padding-bottom: 8px;
+  margin-top: 0 !important;
+  margin-bottom: 16px;
+  page-break-before: avoid !important;
 }}
 </style>
 </head>
