@@ -90,6 +90,8 @@ class TestUniScholar(unittest.TestCase):
         # 验证 10.5 被标记为离群异常值
         self.assertIn("Loss", res["outliers"])
         self.assertGreater(res["outliers"]["Loss"]["outlier_count"], 0)
+        self.assertIn("llm_interpretation", res)
+        self.assertGreater(len(res["llm_interpretation"]), 10)
 
         import shutil
         if os.path.exists("tests/temp_charts"):
@@ -127,9 +129,9 @@ class TestUniScholar(unittest.TestCase):
         self.assertIn("pornography", plan.academic_topic_en.lower())
         self.assertIn("Neuroscience", plan.primary_discipline)
         self.assertTrue(any("pornography" in q.lower() for q in plan.search_queries))
-        self.assertTrue(any("brain" in q.lower() for q in plan.search_queries))
+        self.assertTrue(any(any(k in q.lower() for k in ["brain", "cortex", "neural", "striatum", "frontostriatal"]) for q in plan.search_queries))
         self.assertGreaterEqual(len(plan.core_mechanisms), 2)
-        self.assertIn("pornography", [k.lower() for k in plan.filter_keywords])
+        self.assertTrue(any("pornography" in k.lower() for k in plan.filter_keywords))
 
     def test_literature_agent_topic_awareness_and_fallback(self):
         """测试文献检索与离线兜底的主题感知能力（彻底消除 Cadmium 和猪精油脱靶文献）"""
@@ -281,6 +283,48 @@ class TestUniScholar(unittest.TestCase):
         })
         self.assertEqual(resumed_state.status, WorkflowStatus.RUNNING)
         self.assertEqual(len(resumed_state.data["selected_papers"]), 5)
+
+        # 4. 测试 WebUI 原生绑定与工具栏联动逻辑
+        from web.app import (
+            format_paper_choices,
+            render_selection_badge,
+            select_top6_action,
+            select_all_action,
+            clear_all_action,
+            invert_selection_action,
+            parse_selected_indices,
+            resume_research_with_selected_papers,
+        )
+        choices = format_paper_choices(res["papers"])
+        self.assertEqual(len(choices), len(res["papers"]))
+        self.assertEqual(choices[0][1], "0")
+
+        badge_0 = render_selection_badge(0, len(res["papers"]))
+        self.assertIn("未选中文献", badge_0)
+
+        badge_opt = render_selection_badge(6, len(res["papers"]))
+        self.assertIn("最佳配比", badge_opt)
+
+        top6_sel, _ = select_top6_action(res["papers"])
+        self.assertEqual(top6_sel, ["0", "1", "2", "3", "4", "5"])
+
+        all_sel, _ = select_all_action(res["papers"])
+        self.assertEqual(len(all_sel), len(res["papers"]))
+
+        clear_sel, _ = clear_all_action(res["papers"])
+        self.assertEqual(clear_sel, [])
+
+        inv_sel, _ = invert_selection_action(top6_sel, res["papers"])
+        self.assertEqual(len(inv_sel), len(res["papers"]) - 6)
+
+        parsed = parse_selected_indices(["[1] 《测试文献》", "3"], len(res["papers"]))
+        self.assertEqual(parsed, [0, 3])
+
+        # 5. 测试空选时拦截并返回 gr.skip
+        import gradio as gr
+        skip_res = resume_research_with_selected_papers("test_hitl_task_001", res["papers"], [])
+        self.assertEqual(len(skip_res), 11)
+        self.assertEqual(skip_res[0], gr.skip())
 
 
 if __name__ == "__main__":

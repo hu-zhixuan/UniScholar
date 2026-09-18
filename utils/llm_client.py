@@ -17,23 +17,23 @@ _root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 load_dotenv(os.path.join(_root_dir, ".env"), override=True)
 load_dotenv()
 
-# 清理代理环境变量，确保网络直连，防止本地代理工具干扰
-for proxy_var in ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"]:
-    os.environ.pop(proxy_var, None)
-os.environ["NO_PROXY"] = "*"
-os.environ["no_proxy"] = "*"
+# 网络环境配置：默认允许用户配置代理，仅在显式声明 LLM_FORCE_DIRECT=true 时清理代理
+if os.getenv("LLM_FORCE_DIRECT", "false").lower() == "true":
+    for proxy_var in ["HTTP_PROXY", "HTTPS_PROXY", "ALL_PROXY", "http_proxy", "https_proxy", "all_proxy"]:
+        os.environ.pop(proxy_var, None)
+    os.environ["NO_PROXY"] = "*"
+    os.environ["no_proxy"] = "*"
 
-# ==================== Socket 层 DNS 直连优化 ====================
-ENABLE_LLM_DNS_PATCH = os.getenv("ENABLE_LLM_DNS_PATCH", "true").lower() == "true"
-DEFAULT_DIRECT_IP = os.getenv("LLM_DIRECT_IP", "114.80.15.146")
+# ==================== Socket 层 DNS 直连优化（可选） ====================
+ENABLE_LLM_DNS_PATCH = os.getenv("ENABLE_LLM_DNS_PATCH", "false").lower() == "true"
+LLM_DNS_PATCH_HOST = os.getenv("LLM_DNS_PATCH_HOST", "")
+DEFAULT_DIRECT_IP = os.getenv("LLM_DIRECT_IP", "")
 
 
 def patched_create_connection(address, *args, **kwargs):
     host, port = address
-    if host == "fxb.supa.net.cn" and DEFAULT_DIRECT_IP:
+    if LLM_DNS_PATCH_HOST and host == LLM_DNS_PATCH_HOST and DEFAULT_DIRECT_IP:
         try:
-            # 调用 install_dns_patch() 保存的原始 create_connection 引用，
-            # 将 fxb 域名直连到已探测的固定 IP，绕过异常 DNS
             return urllib3_cn._orig_create_connection((DEFAULT_DIRECT_IP, port), *args, **kwargs)
         except Exception:
             pass
@@ -41,35 +41,40 @@ def patched_create_connection(address, *args, **kwargs):
 
 
 def install_dns_patch():
-    if ENABLE_LLM_DNS_PATCH:
+    if ENABLE_LLM_DNS_PATCH and LLM_DNS_PATCH_HOST and DEFAULT_DIRECT_IP:
         if not hasattr(urllib3_cn, "_orig_create_connection"):
-            # 保存原始 create_connection 引用供补丁函数调用（此处命名为 _orig 前缀
-            # 保存原引用；patched_create_connection 内通过 _orig 属性访问原始函数）
             urllib3_cn._orig_create_connection = urllib3_cn.create_connection
             urllib3_cn.create_connection = patched_create_connection
-            logger.info(f"已成功加载 Socket DNS 直连补丁：fxb.supa.net.cn -> {DEFAULT_DIRECT_IP}")
-    else:
-        logger.info("Socket DNS 直连补丁处于关闭状态（按需开启）")
+            logger.info(f"已加载 Socket DNS 直连补丁：{LLM_DNS_PATCH_HOST} -> {DEFAULT_DIRECT_IP}")
 
 
 install_dns_patch()
 # ===============================================================
 
 
-# ==================== Prompt 与算法版本控制 ====================
-import hashlib  # noqa: E402  # 分组注释块后的模块导入
-
-EXTRACTION_PROMPT_VERSION = "v1.3"
-REPORT_PROMPT_VERSION = "v2.0"
-EMBEDDING_MODEL_NAME = "all-MiniLM-L6-v2"
-
-
-def get_prompt_fingerprint(prompt_version: str, model_name: str, temperature: float, system_prompt: str) -> str:
-    raw_str = f"{prompt_version}:{model_name}:{temperature}:{system_prompt}"
-    return hashlib.md5(raw_str.encode("utf-8")).hexdigest()[:10]
-
-
-# ===============================================================
+def clean_thinking_process(text: str) -> str:
+    """
+    清洗大模型输出中的思考链内容（如 <think>...</think> 或 <thought>...</thought> 标签），
+    彻底杜绝 reasoning token 泄露到最终学术成果与界面展示中。
+    """
+    if not text:
+        return ""
+    t = str(text)
+    # 1. 匹配完整的成对标签 <think>...</think> 或 <thought>...</thought>
+    t = re.sub(r"<(think|thought)>[\s\S]*?</\1>", "", t)
+    # 2. 如果存在孤立闭合标签 </think> 或 </thought>（前面内容被截断），取闭合标签之后的内容
+    if "</think>" in t:
+        t = t.split("</think>")[-1]
+    if "</thought>" in t:
+        t = t.split("</thought>")[-1]
+    # 3. 如果存在未闭合的 <think> 标签（例如思考过程被截断）
+    if "<think>" in t:
+        t = t.split("<think>")[0]
+    if "<thought>" in t:
+        t = t.split("<thought>")[0]
+    # 4. 清理以“思考过程：...”为开头的推演段落
+    t = re.sub(r"^(?:思考过程|Thinking Process|Reasoning Process)[:：][\s\S]*?\n\n", "", t, flags=re.IGNORECASE)
+    return t.strip()
 
 
 class LLMClient:
@@ -88,10 +93,10 @@ class LLMClient:
         max_tokens: Optional[int] = None,
     ):
         self.api_key: Optional[str] = api_key or os.getenv("LLM_API_KEY")
-        self.base_url: str = base_url or os.getenv("LLM_BASE_URL") or "https://fxb.supa.net.cn:6443"
-        self.model: str = model or os.getenv("LLM_MODEL") or "deepseek-v4-flash"
-        # 可用 LLM_TIMEOUT / LLM_MAX_TOKENS 环境变量全局调整（长报告生成在调用处单独放宽）
-        self.timeout = timeout if timeout is not None else int(os.getenv("LLM_TIMEOUT", "60"))
+        self.base_url: str = base_url or os.getenv("LLM_BASE_URL") or "https://api.deepseek.com"
+        self.model: str = model or os.getenv("LLM_MODEL") or "deepseek-chat"
+        # 可用 LLM_TIMEOUT / LLM_MAX_TOKENS 环境变量全局调整（长报告生成在调用处单独放宽，默认设为 35 秒避免前端长时间卡死）
+        self.timeout = timeout if timeout is not None else int(os.getenv("LLM_TIMEOUT", "35"))
         self.max_tokens = max_tokens if max_tokens is not None else int(os.getenv("LLM_MAX_TOKENS", "4000"))
         self.fallback_api_key = os.getenv("LLM_FALLBACK_API_KEY", "")
 
@@ -103,6 +108,7 @@ class LLMClient:
         self.total_completion_tokens = 0
         self.total_api_calls = 0
         self.token_source = "api"
+        self.last_call_metadata: Dict[str, Any] = {}
 
         # 模型单价映射表
         self.MODEL_PRICING = {
@@ -146,6 +152,10 @@ class LLMClient:
                     url = url + "/v1/messages"
         else:
             # OpenAI 格式
+            if url.endswith("/chat/completions"):
+                return url
+            if "googleapis.com" in url and "/openai" in url:
+                return url.rstrip("/") + "/chat/completions"
             if not url.endswith("/v1/chat/completions"):
                 if url.endswith("/v1"):
                     url = url + "/chat/completions"
@@ -160,9 +170,17 @@ class LLMClient:
 
     def _init_session(self):
         self.session = requests.Session()
-        # trust_env=False 强制直连网络，避免 Windows 注册表残留代理导致 SSL/Proxy 报错
-        self.session.trust_env = False
-        self.session.proxies = {"http": None, "https": None}
+        # 智能适配代理：优先尊重用户显式配置的 LLM_PROXY
+        custom_proxy = os.getenv("LLM_PROXY", "").strip()
+        if custom_proxy:
+            self.session.proxies = {"http": custom_proxy, "https": custom_proxy}
+        elif "googleapis.com" in (self.base_url or "") or "googleapis.com" in (self.url or ""):
+            proxy_url = os.getenv("HTTP_PROXY") or os.getenv("HTTPS_PROXY") or "http://127.0.0.1:7890"
+            self.session.proxies = {"http": proxy_url, "https": proxy_url}
+        else:
+            # 国内端点 (如 api.atria-asi.ai, api.deepseek.com 等) 默认纯直连，屏蔽 Windows 系统残留死代理
+            self.session.trust_env = False
+            self.session.proxies = {"http": None, "https": None}
 
     def _build_headers(self, api_key: str) -> Dict[str, str]:
         """根据 API 格式构建请求头"""
@@ -172,28 +190,45 @@ class LLMClient:
             return {"Authorization": f"Bearer {api_key}", "content-type": "application/json"}
 
     def _build_payload(
-        self, prompt: str, system_prompt: str, temperature: float, max_tokens: Optional[int] = None
+        self,
+        prompt: str,
+        system_prompt: str,
+        temperature: float,
+        max_tokens: Optional[int] = None,
+        force_merge_system: bool = False,
+        model_name: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """根据 API 格式构建请求体"""
+        """根据 API 格式构建请求体，自动对 GLM / Free 特殊模型做 system 角色兼容"""
         mt = max_tokens or self.max_tokens
+        cur_model = model_name or self.model
         if self.api_format == "anthropic":
             return {
-                "model": self.model,
+                "model": cur_model,
                 "max_tokens": mt,
                 "temperature": temperature,
                 "system": system_prompt,
                 "messages": [{"role": "user", "content": prompt}],
             }
         else:
+            # 兼容性适配：GLM、Free 模型对独立的 role: "system" 不友好时自动合并
+            is_special = force_merge_system or any(k in cur_model.lower() for k in ["glm", "chatglm", "free"]) or "tokenrouter" in (self.base_url or "").lower()
+            if is_special and system_prompt:
+                combined_user_content = f"【系统学术设定与指令】\n{system_prompt}\n\n【科研任务】\n{prompt}"
+                return {
+                    "model": cur_model,
+                    "max_tokens": mt,
+                    "temperature": temperature,
+                    "messages": [{"role": "user", "content": combined_user_content}],
+                }
             return {
-                "model": self.model,
+                "model": cur_model,
                 "max_tokens": mt,
                 "temperature": temperature,
                 "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": prompt}],
             }
 
     def _parse_response(self, resp_data: Dict[str, Any]) -> str:
-        """根据 API 格式解析响应文本"""
+        """根据 API 格式解析响应文本，并自动脱敏过滤思考链"""
         if self.api_format == "anthropic":
             content_list = resp_data.get("content", [])
             text_parts = [
@@ -201,24 +236,35 @@ class LLMClient:
                 for block in content_list
                 if isinstance(block, dict) and block.get("type") == "text"
             ]
-            return "".join(text_parts).strip()
+            return clean_thinking_process("".join(text_parts))
         else:
             # OpenAI format
             choices = resp_data.get("choices", [])
             if choices:
                 message = choices[0].get("message", {})
-                # 兼容 reasoning 模型（如 deepseek-v4-flash）：content 可能被 reasoning 吃光为空。
-                # 此时回退读取 reasoning_content，保证调用方拿到可解析文本而不是“空响应”。
-                text = (message.get("content") or "").strip()
-                if not text:
+                raw_content = (message.get("content") or "").strip()
+                if "Sorry, to prevent abuse of free resources" in raw_content or "accounts that have not been recharged" in raw_content:
+                    logger.warning("AIHubMix 平台拦截：未充值账号试用次数已达上限 (10次)，自动触发降级/重试...")
+                    return ""
+
+                # 优先解析正文并清洗 <think> 标签
+                clean_content = clean_thinking_process(raw_content)
+                if clean_content:
+                    text = clean_content
+                else:
+                    # 仅当 content 为空时，尝试从 reasoning_content 中获取内容并清洗
                     reasoning = message.get("reasoning_content") or ""
-                    if reasoning:
-                        logger.info("检测到 reasoning 模型 content 为空，回退读取 reasoning_content 输出。")
-                        text = reasoning.strip()
+                    cleaned_reasoning = clean_thinking_process(reasoning)
+                    if cleaned_reasoning:
+                        logger.info("检测到 reasoning 模型 content 为空，读取清洗后的 reasoning_content 输出。")
+                        text = cleaned_reasoning
+                    else:
+                        text = clean_thinking_process(raw_content)
+
                 # 截断警告仍由调用方传入的 max_tokens 语义决定：仅当最终文本非空且确实被截断时提示
                 if choices[0].get("finish_reason") == "length":
                     logger.warning("LLM 输出达到 max_tokens 上限被截断，可能导致 JSON 不完整。")
-                return text
+                return clean_thinking_process(text)
             return ""
 
     def _parse_usage(self, resp_data: Dict[str, Any]) -> tuple:
@@ -244,39 +290,73 @@ class LLMClient:
     ) -> str:
         """发起 LLM API 请求（自动适配 OpenAI / Anthropic 格式）"""
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+        call_start_time = time.time()
 
         if not self.api_key or not self.api_key.strip() or self.api_key == "your_api_key_here":
+            self.last_call_metadata = {
+                "status": "failed",
+                "model": self.model,
+                "latency": 0.0,
+                "source": "fallback",
+                "error": "未配置有效的 LLM_API_KEY",
+            }
             raise ValueError("未配置有效的 LLM_API_KEY，快速回退至离线生成机制")
 
-        # 构建端点列表
+        # 构建端点列表 (target_url, active_key, target_model)
         endpoints = []
-        endpoints.append((self.url, self.api_key))
-        # 如果主端点是 fxb 服务，添加 DeepSeek 官方作为备用。
-        # 注意：只有当 LLM_FALLBACK_ENDPOINT=false 时禁用备用端点（仅用于绕过不可用主端点调试）
-        if "fxb.supa.net.cn" in self.url and os.getenv("LLM_FALLBACK_ENDPOINT", "true").lower() != "false":
-            fallback_key = self.fallback_api_key or self.api_key
-            if self.api_format == "anthropic":
-                endpoints.append(("https://api.deepseek.com/v1/messages", fallback_key))
-            else:
-                endpoints.append(("https://api.deepseek.com/v1/chat/completions", fallback_key))
+        endpoints.append((self.url, self.api_key, self.model))
+
+        # 备用端点：若配置了 LLM_FALLBACK_BASE_URL 与 LLM_FALLBACK_MODEL，严格按配对绑定
+        fallback_base_url = os.getenv("LLM_FALLBACK_BASE_URL", "").strip()
+        fallback_model = os.getenv("LLM_FALLBACK_MODEL", "").strip()
+        fallback_key = self.fallback_api_key or self.api_key
+        if fallback_base_url:
+            fb_url = self._build_url(fallback_base_url)
+            fb_m = fallback_model or self.model
+            if (fb_url, fallback_key, fb_m) not in endpoints:
+                endpoints.append((fb_url, fallback_key, fb_m))
+        elif fallback_model and fallback_model != self.model:
+            endpoints.append((self.url, self.api_key, fallback_model))
 
         effective_timeout = timeout or self.timeout
 
-        for url_idx, (target_url, active_key) in enumerate(endpoints):
+        for url_idx, (target_url, active_key, current_model) in enumerate(endpoints):
+            # 针对不同端点动态调整网络环境：Google/OpenAI 等境外端点走代理，国内端点（如 Atria、DeepSeek）纯直连
+            if any(k in target_url for k in ["googleapis.com", "openai.com"]):
+                proxy_url = os.getenv("HTTP_PROXY") or os.getenv("HTTPS_PROXY") or "http://127.0.0.1:7890"
+                self.session.proxies = {"http": proxy_url, "https": proxy_url}
+                self.session.trust_env = True
+            else:
+                self.session.proxies = {"http": None, "https": None}
+                self.session.trust_env = False
+
             headers = self._build_headers(active_key or "")
-            payload = self._build_payload(prompt, system_prompt, temperature, max_tokens=max_tokens)
+            payload = self._build_payload(prompt, system_prompt, temperature, max_tokens=max_tokens, model_name=current_model)
 
             for attempt in range(1, max_retries + 1):
                 try:
                     response = self.session.post(
                         target_url, headers=headers, json=payload, timeout=effective_timeout, verify=False
                     )
-                    # 主端点 HTTP 500 时视为临时故障：优先切换到备用端点，
-                    # 避免 5 次无效重试浪费大量时间（部分 one-api 长生成会短暂 500）
-                    if url_idx == 0 and response.status_code >= 500:
+                    # HTTP 429 限流时：进行平滑退避（Google free tier 15 RPM），若超限则切换备用
+                    if response.status_code == 429:
+                        if attempt < max_retries:
+                            wait_s = attempt * 2.5
+                            logger.warning(
+                                f"端点 {target_url} (模型 {current_model}) 返回 HTTP 429 频控，等待 {wait_s:.1f} 秒后重试 (第 {attempt}/{max_retries} 次)..."
+                            )
+                            time.sleep(wait_s)
+                            continue
+                        elif url_idx < len(endpoints) - 1:
+                            logger.warning(
+                                f"端点 {target_url} (模型 {current_model}) 达到 429 限流上限，切换至备用端点/模型..."
+                            )
+                            break
+                    # HTTP 5xx 故障时：直接切换到备用端点/模型重试
+                    elif response.status_code in [500, 502, 503, 504]:
                         logger.warning(
-                            f"主端点 {target_url} 返回 HTTP {response.status_code}（临时故障），"
-                            f"直接切换到备用端点重试..."
+                            f"端点 {target_url} (模型 {current_model}) 返回 HTTP {response.status_code}，"
+                            f"直接切换到备用端点/模型重试..."
                         )
                         if url_idx < len(endpoints) - 1:
                             break
@@ -288,6 +368,22 @@ class LLMClient:
                         logger.warning("LLM 输出被 max_tokens 截断，可能导致后续 JSON 或文本内容解析不全。")
 
                     text = self._parse_response(resp_data)
+                    # 额外兼容：若返回内容为空且含有 system_prompt，自动尝试合并 user 重试一次
+                    if not text and system_prompt:
+                        logger.info("API 返回内容为空，尝试强制合并 system_prompt 至 user 提示词重试...")
+                        retry_payload = self._build_payload(
+                            prompt, system_prompt, temperature, max_tokens=max_tokens, force_merge_system=True, model_name=current_model
+                        )
+                        r2 = self.session.post(
+                            target_url, headers=headers, json=retry_payload, timeout=effective_timeout, verify=False
+                        )
+                        if r2.status_code == 200:
+                            retry_data = r2.json()
+                            retry_text = self._parse_response(retry_data)
+                            if retry_text:
+                                text = retry_text
+                                resp_data = retry_data
+
                     if not text:
                         logger.error(f"API 响应结构异常，文本内容为空: {resp_data}")
                         raise ValueError("LLM API 返回内容为空")
@@ -309,9 +405,26 @@ class LLMClient:
                         self.total_prompt_tokens += estimate_tokens(prompt) + estimate_tokens(system_prompt)
                         self.total_completion_tokens += estimate_tokens(text)
 
+                    elapsed = round(time.time() - call_start_time, 2)
+                    self.last_call_metadata = {
+                        "status": "success",
+                        "model": current_model,
+                        "latency": elapsed,
+                        "prompt_tokens": p_tokens,
+                        "completion_tokens": c_tokens,
+                        "source": "live_llm",
+                    }
                     return text
 
                 except Exception as e:
+                    elapsed = round(time.time() - call_start_time, 2)
+                    self.last_call_metadata = {
+                        "status": "failed",
+                        "model": self.model,
+                        "latency": elapsed,
+                        "error": str(e),
+                        "source": "fallback",
+                    }
                     is_rate_limit = False
                     wait_time = 0
 
@@ -323,15 +436,9 @@ class LLMClient:
                         or "proxy" in str(e).lower()
                         or "FileNotFoundError" in str(e)
                     ):
-                        logger.warning(f"检测到连接/代理异常 ({str(e)})，正在自动重建 Session 重试...")
-                        # 代理异常时切换到"直连/不走系统代理"的 Session，与 DNS 补丁配合最多三重兜底
-                        if self.session.trust_env:
-                            self.session.trust_env = False
-                            self.session.proxies = {"http": None, "https": None}
-                        else:
-                            self.session.trust_env = True
-                            self.session.proxies = {}
-                        self._init_session()
+                        logger.warning(f"检测到连接/代理异常 ({str(e)})，正在切换为强制纯直连重试...")
+                        self.session.trust_env = False
+                        self.session.proxies = {"http": None, "https": None}
                         continue
 
                     if hasattr(e, "response") and e.response is not None:

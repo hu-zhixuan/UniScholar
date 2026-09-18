@@ -35,9 +35,9 @@
     },
     {
       "id": "node_literature_retrieval",
-      "type": "agent",
+      "type": "hitl_checkpoint",
       "agent": "LiteratureRetrievalAgent",
-      "displayName": "文献自动化检索与递归筛选",
+      "displayName": "文献自动化检索与候选池召回 (人在回路遴选节点)",
       "tools": [
         "OpenAlexAPI",
         "EuropePMCAPI",
@@ -52,23 +52,26 @@
         "search_queries"
       ],
       "outputs": [
-        "literature_pool",
+        "candidate_pool",
+        "selected_literature_pool",
         "filtered_count"
       ],
       "next": "node_feature_extraction",
-      "supportsPause": true
+      "supportsPause": true,
+      "defaultAction": "PAUSE_FOR_CANDIDATE_SELECTION"
     },
     {
       "id": "node_feature_extraction",
       "type": "agent",
       "agent": "ReviewExtractionAgent",
-      "displayName": "文献核心信息抽取与结构化提炼",
+      "displayName": "核心文献要素抽取与学术中文纯化",
       "tools": [
         "PydanticSchemaExtractor",
-        "ParallelLLMExecutor"
+        "ParallelLLMExecutor",
+        "ScholarlyChineseLocalizer"
       ],
       "inputs": [
-        "literature_pool"
+        "selected_literature_pool"
       ],
       "outputs": [
         "extracted_features",
@@ -79,9 +82,9 @@
     },
     {
       "id": "node_outline_generation",
-      "type": "hitl_checkpoint",
+      "type": "agent",
       "agent": "ReviewSynthesisAgent",
-      "displayName": "综述大纲规划 (人在回路干预节点)",
+      "displayName": "新论文文献综述大纲规划",
       "tools": [
         "OutlinePlannerLLM"
       ],
@@ -92,8 +95,7 @@
         "review_outline"
       ],
       "next": "node_review_synthesis",
-      "supportsPause": true,
-      "defaultAction": "PAUSE_FOR_HUMAN_REVIEW"
+      "supportsPause": false
     },
     {
       "id": "node_review_synthesis",

@@ -196,7 +196,11 @@ def run_full_pipeline(
         data_agent = DataAgent(output_dir=os.path.join(output_dir, "charts"))
         # 如果未提供具体文件，使用内置公开科研实验样例
         raw_csv_content = experiment_data or get_sample_experiment_csv()
-        data_res = data_agent.run(raw_csv_content, task_id=state.task_id)
+        data_res = data_agent.run(
+            raw_csv_content,
+            task_id=state.task_id,
+            topic=state.params.get("query", query),
+        )
 
         state.data["data_analysis_report"] = data_res["report_markdown"]
         state.data["generated_charts"] = data_res["charts"]
