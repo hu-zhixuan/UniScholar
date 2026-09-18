@@ -22,3 +22,5 @@ cache/
 # User data
 temp/
 *.tmp
+*.zip
+submission_package/
