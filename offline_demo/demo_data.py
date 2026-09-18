@@ -736,7 +736,7 @@ def get_offline_features(topic: Optional[str] = None) -> List[Dict[str, Any]]:
                 "publication_year": 2025,
                 "background": "围绕强迫性性行为障碍与高刺激网络媒介诱发线索下的神经激励突显机制展开实证探究。",
                 "core_innovations": [
-                    "揭示强迫性群体在面对刺激线索时腹侧纹状体呈现过度神经敏化",
+                    "揭示强迫性群体在面对刺激线索时腹侧纹状体与中脑多巴胺奖赏回路呈现过度神经敏化",
                     "首次在实验中证实其消退阶段表现出刺激特异性的神经适应与抑制障碍",
                 ],
                 "methodology": "采用功能磁共振成像 (fMRI) 结合主动线索条件习得与消退实验范式对受试者开展对照扫描",

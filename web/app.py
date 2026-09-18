@@ -288,7 +288,7 @@ def render_selection_badge(selected_count: int, total_count: int = 20) -> str:
         tip = "未选中文献 · 请至少勾选 1 篇以支撑后续推演"
     elif 5 <= selected_count <= 8:
         badge_style = "background: #F0FDF4; color: #166534; border: 1px solid #BBF7D0;"
-        tip = "已达到最佳学术论据密度配比 (建议 5~8 篇)"
+        tip = "已达到最佳配比 (学术论据密度充足，建议 5~8 篇)"
     elif selected_count < 5:
         badge_style = "background: #FFFBEB; color: #92400E; border: 1px solid #FDE68A;"
         tip = f"已选 {selected_count} 篇 · 建议 5~8 篇 (当前已可启动)"
