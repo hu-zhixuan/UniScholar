@@ -31,54 +31,88 @@ def reconstruct_abstract(inverted_index: Optional[Dict[str, List[int]]]) -> str:
     return " ".join(word for _, word in pos_word)
 
 
+# 学术通用停用词库：杜绝“empirical”、“study”、“review”等空泛词元单独判定相关性
+ACADEMIC_STOPWORDS = {
+    "empirical", "study", "studies", "mechanisms", "mechanism", "analysis",
+    "review", "recent", "advances", "advance", "methodology", "evaluation",
+    "theoretical", "theory", "model", "models", "approach", "approaches",
+    "framework", "investigation", "effects", "effect", "impact", "impacts",
+    "perspective", "perspectives", "based", "system", "systems", "using",
+    "towards", "role", "roles", "research", "paper", "journal", "international",
+    "comparative", "systematic", "understanding", "exploring", "overview",
+    "comprehensive", "quantitative", "qualitative", "findings", "insight",
+    "insights", "evidence", "future", "development", "applications"
+}
+
+
 def calculate_relevance_score(
     title: str,
     abstract: str,
     query_terms: List[str],
 ) -> float:
     """
-    轻量级高效相关度评分 (TF-IDF 启发式)，支持中英文分词匹配，零幻觉。
-    title 匹配赋予 3 倍权重，abstract 匹配赋予 1 倍权重。
+    高精度学术语义相关度打分引擎 (支持中英文分词、核心概念强约束、通用停用词清洗)。
+    铁律：
+    1. 必须命中至少 1 个领域核心专业词元 (非通用停用词)，否则直接判 0.0 分！
+    2. 标题命中赋予 4.0 倍权重，摘要命中赋予 1.5 倍权重。
+    3. 严禁无条件赋予 0.20 兜底分，彻底杜绝跨域杂音论文渗透。
     """
-    text = f"{title.lower()} {abstract.lower()}"
+    t_lower = title.lower()
+    a_lower = abstract.lower()
+    text = f"{t_lower} {a_lower}"
     if not text.strip() or not query_terms:
-        return 0.5
+        return 0.0
 
     # 将所有查询词打散为独立词元 (支持中英文切分)
-    tokens = set()
+    all_tokens = set()
     for term in query_terms:
         if not term:
             continue
         words = re.findall(r"[a-zA-Z0-9]+", term.lower())
-        tokens.update(w for w in words if len(w) > 2)
+        all_tokens.update(w for w in words if len(w) > 2)
         chinese_chars = re.findall(r"[\u4e00-\u9fff]+", term)
         for chunk in chinese_chars:
             if len(chunk) <= 4:
-                tokens.add(chunk)
+                all_tokens.add(chunk)
             else:
                 for i in range(0, len(chunk) - 1):
-                    tokens.add(chunk[i:i + 2])
+                    all_tokens.add(chunk[i:i + 2])
 
-    if not tokens:
-        return 0.65
-
-    score = 0.0
-    matched_terms = 0
-
-    for token in tokens:
-        t_count = len(re.findall(re.escape(token), title.lower()))
-        a_count = len(re.findall(re.escape(token), abstract.lower()))
-        t_score = t_count * 3.0 + a_count * 1.0
-        if t_score > 0:
-            matched_terms += 1
-            score += 1.0 + math.log(1.0 + t_score)
-
-    if matched_terms == 0:
+    if not all_tokens:
         return 0.0
 
-    term_coverage = matched_terms / max(1, len(tokens))
-    normalized_score = min(0.98, (score / (len(tokens) * 3.0)) * 0.5 + term_coverage * 0.5)
-    return max(0.20, round(normalized_score, 3))
+    # 区分领域核心词元 (Domain Tokens) 与通用学术停用词 (Generic Tokens)
+    domain_tokens = [t for t in all_tokens if t not in ACADEMIC_STOPWORDS]
+    generic_tokens = [t for t in all_tokens if t in ACADEMIC_STOPWORDS]
+
+    # 核心铁律：若存在领域词元，必须至少命中 1 个领域词元！
+    matched_domain_count = 0
+    domain_score = 0.0
+    for dt in domain_tokens:
+        t_hit = len(re.findall(re.escape(dt), t_lower))
+        a_hit = len(re.findall(re.escape(dt), a_lower))
+        if t_hit > 0 or a_hit > 0:
+            matched_domain_count += 1
+            domain_score += t_hit * 4.0 + a_hit * 1.5 + 1.0
+
+    if domain_tokens and matched_domain_count == 0:
+        # 完全未命中任何领域核心词元，判定为完全脱靶，直接归零！
+        return 0.0
+
+    # 通用词元辅助微调 (权重极低，仅在已命中领域词元时提供微调)
+    generic_score = 0.0
+    for gt in generic_tokens:
+        t_hit = len(re.findall(re.escape(gt), t_lower))
+        a_hit = len(re.findall(re.escape(gt), a_lower))
+        if t_hit > 0 or a_hit > 0:
+            generic_score += t_hit * 0.5 + a_hit * 0.2
+
+    # 综合归一化得分计算
+    total_domain_len = max(1, len(domain_tokens)) if domain_tokens else max(1, len(all_tokens))
+    coverage = matched_domain_count / total_domain_len if domain_tokens else 0.5
+    raw_score = (domain_score / (total_domain_len * 3.5)) * 0.6 + coverage * 0.35 + min(0.05, generic_score * 0.01)
+
+    return round(min(0.98, max(0.0, raw_score)), 3)
 
 
 class LiteratureAgent:
@@ -319,15 +353,28 @@ class LiteratureAgent:
         # 优先执行规划的英文核心检索短语
         queries_to_run = search_queries[:3] if search_queries else [query]
         for q_phrase in queries_to_run:
+            # 过滤掉非 ASCII 中文字符，避免直接把原始中文传给英文学术搜索引擎导致 0 召回
+            clean_phrase = re.sub(r"[\u4e00-\u9fff]+", " ", q_phrase).strip()
+            clean_phrase = re.sub(r"\s+", " ", clean_phrase)
+            if not clean_phrase:
+                continue
+
             # OpenAlex
-            oa_results = self.search_openalex(q_phrase, from_year, max_papers)
+            oa_results = self.search_openalex(clean_phrase, from_year, max_papers)
+            # 若精准多词短语未召回，执行查询松弛 (Query Relaxation) 自动分解为 2 词核心概念对
+            if not oa_results:
+                words = clean_phrase.split()
+                if len(words) >= 3:
+                    relaxed_pair = f"{words[0]} {words[1]}"
+                    logger.info(f"OpenAlex 精确短语未命中，自动执行查询松弛: '{relaxed_pair}'")
+                    oa_results = self.search_openalex(relaxed_pair, from_year, max_papers)
             fetched_papers.extend(oa_results)
 
             if self.request_delay > 0:
                 time.sleep(self.request_delay)
 
-            # Europe PMC (对于医学/脑科学/生物/交叉学科效果极好)
-            epmc_results = self.search_europepmc(q_phrase, from_year, max_papers)
+            # Europe PMC (对于医学/脑科学/生物/心理交叉学科效果极好)
+            epmc_results = self.search_europepmc(clean_phrase, from_year, max_papers)
             fetched_papers.extend(epmc_results)
 
             if self.request_delay > 0:
@@ -336,8 +383,12 @@ class LiteratureAgent:
             if len(fetched_papers) >= max_papers * 2:
                 break
 
-        # 若文献量仍不足，使用 arXiv 兜底
-        if len(fetched_papers) < 8 and queries_to_run:
+        # 若文献量仍不足，仅当学科属于 STEM (计算机/数理/工程) 时才允许使用 arXiv 兜底
+        # 严禁将心理学、医学、社会科学、艺术人文导向 arXiv 造成跨域软件工程/高能物理污染
+        stem_disciplines = ["computer science", "artificial intelligence", "physics", "mathematics", "quantitative", "engineering"]
+        disc_text = (getattr(intent_plan, "primary_discipline", "") or "").lower() if intent_plan else ""
+        is_stem = any(sd in disc_text for sd in stem_disciplines)
+        if len(fetched_papers) < 8 and queries_to_run and is_stem:
             arxiv_res = self.search_arxiv_fallback(queries_to_run[0], max_papers)
             fetched_papers.extend(arxiv_res)
 

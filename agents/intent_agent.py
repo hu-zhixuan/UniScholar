@@ -35,41 +35,39 @@ class IntentPlan(BaseModel):
     core_mechanisms: List[str] = Field(default_factory=list, description="预期重点提取的科学机制/神经生物指标/理论构念")
     filter_keywords: List[str] = Field(default_factory=list, description="用于文献相关度语义打分的中英文关键词库")
     outline_framework: List[str] = Field(default_factory=list, description="针对该领域定制的综述大纲章节框架")
+    is_heuristic: bool = Field(default=False, description="是否由领域规则引擎启发式兜底生成")
+    generation_source: str = Field(default="LLM 真实在线推理", description="生成来源标识")
 
 
-INTENT_PROMPT = """
-你是一名资深学术情报战略专家与跨学科科研规划导师。
-用户提出了一个科研研究方向或开题设想：
-【原始选题】：{query}
-【初始关键词/用户补充】：{user_keywords}
+INTENT_PROMPT = """你是一名资深跨学科学术导师与科研智能体大脑。
+用户提交了以下科研选题与开题设想：
+【研究选题】：{query}
+【补充信息/关键词】：{user_keywords}
 
-请作为 UniScholar 学术 Harness 的思考大脑，为该课题制定严密的学术执行规划。
-要求：
-1. academic_topic_zh: 提炼更具学术严谨性的中文课题全称。
-2. academic_topic_en: 转换为国际顶级期刊对应的标准英文学术课题名称。
-3. 自动纠正常见拼写错误（例如将 "pron" 纠正为 "pornography" 等）。
-4. primary_discipline: 指明核心归属学科（例如 Cognitive Neuroscience, Psychiatry, Computer Science, Pharmacology 等）。
-5. sub_disciplines: 2-4个核心分支领域或交叉学科。
-6. search_queries: 规划 3-5 个高区分度、高命中率的英文学术搜索短语（用于 OpenAlex、Europe PMC、PubMed、arXiv 检索）。短语中应融入该领域的权威学术术语、实验范式（如 fMRI, cue reactivity, longitudinal）、神经生化机制等。
-7. core_mechanisms: 3-5 个该领域应当重点关注与抽取的科学机制、生物指标或技术架构。
-8. filter_keywords: 包含 8-15 个核心中英文词汇（中英混合），用于精确度语义打分与防脱靶过滤。
-9. outline_framework: 针对该具体科学领域的 4 个核心综述章节主题（严禁输出与选题无关的固定通用模版）。
+请作为科研自动化系统的思考大脑，充分发挥你的专业学术判断与主观能动性，自主为该课题规划最佳的研究推进方案：
+包括规范化中英文学术课题界定、所属核心学科领域、检索国际学术文献（OpenAlex / Europe PMC）所需的英文检索词、预期关注的核心科学机制与指标、用于文献相关度打分的关键词库，以及该主题定制的学术大纲框架。
 
-请直接输出符合以下结构的纯 JSON 格式：
+请直接以纯 JSON 格式输出你的自主规划方案：
 {{
   "original_topic": "{query}",
-  "academic_topic_zh": "...",
-  "academic_topic_en": "...",
-  "primary_discipline": "...",
-  "sub_disciplines": ["...", "..."],
-  "search_queries": ["...", "...", "..."],
-  "core_mechanisms": ["...", "...", "..."],
-  "filter_keywords": ["...", "...", "..."],
+  "academic_topic_zh": "更具学术严谨性的中文规范课题名称",
+  "academic_topic_en": "对应的国际学术标准英文课题名称",
+  "primary_discipline": "主要所属学科",
+  "sub_disciplines": ["分支学科/交叉领域"],
+  "search_queries": [
+    "你自主推演的最佳英文文献检索短语"
+  ],
+  "core_mechanisms": [
+    "你认为该课题核心值得深入探究的机制、指标或理论"
+  ],
+  "filter_keywords": [
+    "用于相关度评估的中英文核心关键词"
+  ],
   "outline_framework": [
-    "一、 引言与核心科学问题界定",
-    "二、 实验观测范式与实证进展",
-    "三、 关键机理剖析与跨研究横向对标",
-    "四、 理论争议、方法局限与未来演进展望"
+    "一、 引言与核心问题界定",
+    "二、 ...",
+    "三、 ...",
+    "四、 ..."
   ]
 }}
 """
@@ -110,7 +108,7 @@ class IntentAgent:
                 prompt=prompt,
                 system_prompt="你是一名严谨的跨学科学术战略规划智能体，输出纯 JSON 格式。",
                 temperature=0.2,
-                timeout=20,
+                timeout=15,
                 max_retries=1,
             )
             data = self.llm_client.extract_json_from_text(raw_res)
@@ -128,12 +126,20 @@ class IntentAgent:
                         plan.academic_topic_zh = clean_query
                     if not plan.academic_topic_en:
                         plan.academic_topic_en = clean_query
-                    logger.info(f"LLM 学术规划成功: {plan.academic_topic_en}, 规划检索词: {plan.search_queries}")
+                    elif "pornographic" in plan.academic_topic_en.lower() and "pornography" not in plan.academic_topic_en.lower():
+                        plan.academic_topic_en = re.sub(r"\bpornographic\s+media\b", "pornography", plan.academic_topic_en, flags=re.IGNORECASE)
+                        plan.academic_topic_en = re.sub(r"\bpornographic\b", "pornography", plan.academic_topic_en, flags=re.IGNORECASE)
+                    plan.is_heuristic = False
+                    plan.generation_source = f"LLM 在线推理 ({getattr(self.llm_client, 'model', '大模型')})"
+                    logger.info(f"【真实 LLM 推理】学术规划成功: {plan.academic_topic_en}, 规划检索词: {plan.search_queries}")
                     return plan
         except Exception as e:
-            logger.warning(f"LLM 学术规划调用异常或未配置密钥 ({e})，激活领域语义规划引擎兜底")
+            logger.warning(f"【触发兜底】LLM 学术规划调用失败或未连通 ({e})，自动激活领域规则引擎高保真兜底")
 
-        return self._heuristic_domain_formulation(clean_query, user_keywords)
+        fallback_plan = self._heuristic_domain_formulation(clean_query, user_keywords)
+        fallback_plan.is_heuristic = True
+        fallback_plan.generation_source = "内置领域知识库规则引擎 (未连通API或离线模式)"
+        return fallback_plan
 
     def _heuristic_domain_formulation(
         self, query: str, user_keywords: Optional[List[str]] = None
@@ -148,7 +154,50 @@ class IntentAgent:
         combined_text = re.sub(r"\bpron\b", "porn", combined_text)
         combined_text = re.sub(r"\bporno\b", "pornography", combined_text)
 
-        # 1. 色情片 / 成人内容 / 性行为成瘾 / 网络性心理（严密独立判定，杜绝普通神经科学被误劫持）
+        # 1. 服饰恋物 / 性唤起 / 丝袜与特殊偏好 / 性心理学（严密独立分支，确保性学权威文献对标）
+        is_fetish_or_sex = any(w in combined_text for w in [
+            "丝袜", "恋物", "恋足", "性唤起", "性欲", "情趣", "内衣", "高跟鞋",
+            "fetish", "fetishism", "paraphilia", "stocking", "stockings",
+            "hosiery", "pantyhose", "sexual arousal", "sexual desire"
+        ])
+        if is_fetish_or_sex:
+            return IntentPlan(
+                original_topic=query,
+                academic_topic_zh="丝袜与特定服饰刺激对人类性欲水平、性唤起及条件反射形成的实证影响机制",
+                academic_topic_en="Empirical Mechanisms of Clothing Fetishism, Conditioned Sexual Arousal, and Hosiery-Induced Sexual Desire",
+                primary_discipline="Sexual Psychology & Behavioral Neuroscience",
+                sub_disciplines=[
+                    "Conditioned Sexual Arousal (Pavlovian Conditioning)",
+                    "Erotic Stimulus Processing & Attention Bias",
+                    "Paraphilic Interests & Fetishism",
+                    "Autonomic & Genital Arousal Assessment",
+                ],
+                search_queries=[
+                    "stocking fetishism sexual arousal",
+                    "clothing fetish sexual desire paraphilia",
+                    "conditioned sexual arousal fetishism empirical",
+                    "hosiery sexual arousal psychological mechanisms",
+                ],
+                core_mechanisms=[
+                    "经典巴甫洛夫条件反射在非生殖器物体与性唤起联结中的习得机制 (Pavlovian conditioning of sexual arousal)",
+                    "特定服饰视觉线索（织物光泽、包裹感）引发的早期注意力捕获与奖赏系统敏化 (Early attentional capture and reward sensitization)",
+                    "多感官联觉刺激下的自主神经系统交感神经激活与外周生殖器血流变化 (Autonomic and genital arousal responses)",
+                    "非病理性恋物倾向在现代性心理与伴侣互动满意度中的积极调节效应 (Non-clinical fetishism and relationship satisfaction)",
+                ],
+                filter_keywords=[
+                    "fetishism", "fetish", "sexual", "arousal", "desire", "stocking", "stockings",
+                    "hosiery", "pantyhose", "paraphilia", "conditioning", "erotic", "plethysmograph",
+                    "丝袜", "性欲", "性唤起", "恋物", "条件反射", "心理", "偏好",
+                ],
+                outline_framework=[
+                    "一、 引言与核心概念界定：服饰恋物与性欲影响的性心理学审视",
+                    "二、 刺激加工与实验测量范式（生殖器光电容积描记法、瞳孔眼动追踪与主观量表）",
+                    "三、 关键机理剖析：条件反射习得、注意力敏化与代表性实证文献对标",
+                    "四、 心理与亲密关系影响（健康非病理化表达vs临床分歧）、现有局限与未来演进展望",
+                ],
+            )
+
+        # 2. 色情片 / 成人内容 / 性行为成瘾 / 网络性心理（严密独立判定，杜绝普通神经科学被误劫持）
         is_porn = any(w in combined_text for w in [
             "色情", "porn", "成人视频", "淫秽", "cybersex", "erotic", "adult content",
             "sexually explicit", "csbd", "compulsive sexual", "性成瘾", "黄色"
@@ -274,29 +323,51 @@ class IntentAgent:
                 ],
             )
 
-        # 3. 通用科学选题自适应解构
+        # 4. 通用科学选题自适应解构与跨语言语义对齐引擎
+        ZH_EN_CONCEPT_MAP = {
+            "丝袜": "stocking hosiery", "性欲": "sexual desire", "性唤起": "sexual arousal",
+            "恋物": "fetishism", "情趣": "erotic lingerie", "心理": "psychology",
+            "神经": "neural", "大脑": "brain", "认知": "cognitive", "成瘾": "addiction",
+            "材料": "materials", "纳米": "nanomaterials", "催化": "catalysis", "电池": "battery",
+            "储能": "energy storage", "半导体": "semiconductor", "钙钛矿": "perovskite",
+            "生物": "biological", "医药": "pharmaceutical", "肿瘤": "tumor cancer",
+            "基因": "gene genomic", "免疫": "immune", "病毒": "virus viral",
+            "算法": "algorithm", "智能体": "agent system", "大模型": "large language models",
+            "深度学习": "deep learning", "机器人": "robotics", "计算机视觉": "computer vision",
+            "经济": "economic", "金融": "financial", "管理": "management", "教育": "education",
+            "气候": "climate", "环境": "environmental", "生态": "ecological", "碳中和": "carbon neutral",
+            "机制": "mechanisms", "模型": "model", "实证": "empirical", "分析": "analysis",
+            "评估": "evaluation", "优化": "optimization", "影响": "impact effects",
+        }
+
+        translated_parts = []
+        for zh_kw, en_kw in ZH_EN_CONCEPT_MAP.items():
+            if zh_kw in combined_text:
+                translated_parts.append(en_kw)
+
         words = re.findall(r"[a-zA-Z0-9]+", combined_text)
         eng_tokens = [w for w in words if len(w) > 2]
-        base_query = " ".join(eng_tokens) if eng_tokens else query
+        all_en_tokens = list(dict.fromkeys(eng_tokens + translated_parts))
+        base_query_en = " ".join(all_en_tokens) if all_en_tokens else "scientific empirical research"
 
         return IntentPlan(
             original_topic=query,
             academic_topic_zh=f"《{query}》核心机制、实证前沿与演进趋势研究",
-            academic_topic_en=f"Advances and Empirical Foundations in {base_query.title()}",
+            academic_topic_en=f"Advances and Empirical Foundations in {base_query_en.title()}",
             primary_discipline="Interdisciplinary Sciences",
             sub_disciplines=["Methodological Advances", "Empirical Evaluation", "Theoretical Foundations"],
             search_queries=[
-                f"{base_query} mechanisms empirical study",
-                f"{base_query} recent advances review",
-                f"{base_query} methodology evaluation",
-                f"{base_query} theoretical model",
+                f"{base_query_en} mechanisms empirical",
+                f"{base_query_en} recent advances review",
+                f"{base_query_en} methodology evaluation",
+                f"{base_query_en} theoretical model",
             ],
             core_mechanisms=[
                 "基础理论与机理模型演进",
                 "实证评估与实验范式对比",
                 "核心参数与定量指标关联分析",
             ],
-            filter_keywords=eng_tokens + [query, "empirical", "mechanisms", "analysis", "review"],
+            filter_keywords=all_en_tokens + [query, "empirical", "mechanisms", "analysis", "review"],
             outline_framework=[
                 f"一、 引言与核心问题界定：{query}的研究背景与学术价值",
                 "二、 主流研究范式与观测方法演进脉络",
