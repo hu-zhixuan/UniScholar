@@ -1,11 +1,9 @@
 """
-UniScholar 参赛提交物自动化一键生成脚本
-生成标准规范的交付文件：
-1. 核心附件一：UniScholar_技术方案与研发报告.pdf (A4正式排版)
-2. 核心附件一(Word版)：UniScholar_技术方案与研发报告.docx
-3. 核心附件二：UniScholar_路演答辩PPT.pdf (16:9宽屏科技风高质感路演幻灯片)
-4. 平台网页填报文案：01_平台网页直接填报文案/全国大学生创业服务网_填报文案库.txt
-5. 纯净源码交付包：04_备用佐证_纯净源码与部署说明/UniScholar_SourceCode_v2.4.0.zip
+UniScholar 参赛提交物全自动生成与同步引擎 (v2.5.0)
+【极简科技白底高冲击版 · 深度结构化优化】
+生成并直接同步至:
+1. FAST/UniScholar/submission_package/
+2. FAST/大创赛提交材料_直接交这三个文件/
 """
 
 import os
@@ -25,6 +23,9 @@ if sys.stdout.encoding != 'utf-8':
 BASE_DIR = Path(__file__).resolve().parent.parent
 DOCS_DIR = BASE_DIR / "docs"
 DIST_DIR = BASE_DIR / "submission_package"
+FAST_DIR = BASE_DIR.parent
+TOP_TARGET_DIR = FAST_DIR / "大创赛提交材料_直接交这三个文件"
+
 EDGE_PATH = r"C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 if not os.path.exists(EDGE_PATH):
     EDGE_PATH = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
@@ -45,7 +46,8 @@ def run_headless_print(html_path: Path, pdf_path: Path):
         raise RuntimeError(f"PDF 生成失败: {res.stderr}")
 
 def generate_technical_proposal_files():
-    print("[1/3] 正在生成【核心附件一：技术方案与研发报告】...")
+    print("\n=======================================================")
+    print("[1/3] 正在生成【核心附件一：技术方案与研发报告】(PDF + Word)...")
     md_file = DOCS_DIR / "technical_proposal.md"
     out_dir = DIST_DIR / "02_核心附件一_技术方案与研发报告"
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -54,9 +56,9 @@ def generate_technical_proposal_files():
     shutil.copy(md_file, out_dir / "UniScholar_技术方案与研发报告.md")
     
     # 2. 生成 docx (Word)
+    docx_path = out_dir / "UniScholar_技术方案与研发报告.docx"
     try:
         import pypandoc
-        docx_path = out_dir / "UniScholar_技术方案与研发报告.docx"
         pypandoc.convert_file(str(md_file), 'docx', outputfile=str(docx_path))
         print(f"  ✓ Word 文档已生成: {docx_path.name} ({docx_path.stat().st_size // 1024} KB)")
     except Exception as e:
@@ -67,7 +69,7 @@ def generate_technical_proposal_files():
     md = MarkdownIt('commonmark').enable('table').enable('strikethrough')
     body_html = md.render(md_content)
     
-    # 注入高质量学术及企业方案 CSS 样式
+    # 注入专业红头学术及企业工程报告 CSS 样式
     html_doc = f"""<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -84,9 +86,9 @@ def generate_technical_proposal_files():
   }}
 }}
 body {{
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "WenQuanYi Micro Hei", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
   color: #1E293B;
-  line-height: 1.65;
+  line-height: 1.68;
   font-size: 10.5pt;
   margin: 0;
   padding: 0;
@@ -107,9 +109,9 @@ body {{
 }}
 .cover-tag {{
   color: #E60012;
-  font-weight: 700;
+  font-weight: 800;
   font-size: 12pt;
-  letter-spacing: 1px;
+  letter-spacing: 1.5px;
 }}
 .cover-subtag {{
   color: #475569;
@@ -117,7 +119,7 @@ body {{
   margin-top: 4px;
 }}
 .cover-main {{
-  margin-top: 40px;
+  margin-top: 35px;
 }}
 .cover-title {{
   font-size: 26pt;
@@ -127,11 +129,11 @@ body {{
   margin-bottom: 12px;
 }}
 .cover-subtitle {{
-  font-size: 14pt;
+  font-size: 13.5pt;
   color: #2563EB;
   font-weight: 600;
   line-height: 1.4;
-  margin-bottom: 24px;
+  margin-bottom: 22px;
 }}
 .cover-badge {{
   display: inline-block;
@@ -146,21 +148,21 @@ body {{
 .cover-meta-table {{
   width: 100%;
   border-collapse: collapse;
-  margin-top: 40px;
+  margin-top: 35px;
   background: #F8FAFC;
   border-radius: 6px;
   overflow: hidden;
-  border: 1px solid #E2E8F0;
+  border: 1px solid #CBD5E1;
 }}
 .cover-meta-table td {{
-  padding: 10px 16px;
+  padding: 9px 15px;
   font-size: 10pt;
   border-bottom: 1px solid #E2E8F0;
 }}
 .cover-meta-table td.label {{
   width: 28%;
-  color: #64748B;
-  font-weight: 600;
+  color: #475569;
+  font-weight: 700;
   background: #F1F5F9;
 }}
 .cover-meta-table td.val {{
@@ -179,14 +181,14 @@ body {{
 h1 {{
   font-size: 18pt;
   color: #0F172A;
-  border-bottom: 2px solid #E60012;
+  border-bottom: 2.5px solid #E60012;
   padding-bottom: 8px;
   margin-top: 36px;
   margin-bottom: 16px;
   page-break-before: always;
 }}
 h2 {{
-  font-size: 14pt;
+  font-size: 13.5pt;
   color: #1E3A8A;
   border-left: 4px solid #2563EB;
   padding-left: 10px;
@@ -194,8 +196,8 @@ h2 {{
   margin-bottom: 12px;
 }}
 h3 {{
-  font-size: 12pt;
-  color: #1E293B;
+  font-size: 11.5pt;
+  color: #0F172A;
   margin-top: 18px;
   margin-bottom: 8px;
 }}
@@ -238,6 +240,7 @@ th {{
   text-align: left;
   padding: 8px 12px;
   border: 1px solid #CBD5E1;
+  border-top: 2px solid #E60012;
 }}
 td {{
   padding: 8px 12px;
@@ -260,6 +263,7 @@ pre {{
   overflow-x: auto;
   page-break-inside: avoid;
   margin: 14px 0;
+  border: 1px solid #334155;
 }}
 code {{
   font-family: "JetBrains Mono", Consolas, Monaco, monospace;
@@ -323,7 +327,7 @@ hr {{
         </tr>
         <tr>
           <td class="label">成效量化指标</td>
-          <td class="val"><strong>释放高校科研 82.3% 事务性工时</strong>（文献调研由 3~5 天压缩至 15 分钟）</td>
+          <td class="val"><strong>释放高校科研 82.3% 事务性工时</strong>（调研周期从 3~5 天缩短至 14 分钟）</td>
         </tr>
         <tr>
           <td class="label">发布与提交日期</td>
@@ -355,11 +359,12 @@ hr {{
     print(f"  ✓ PDF 文档已直接输出: {pdf_path.name} ({pdf_path.stat().st_size // 1024} KB)")
 
 def generate_roadshow_ppt_pdf():
-    print("[2/3] 正在生成【核心附件二：16:9 路演答辩 PPT (PDF)】...")
+    print("\n=======================================================")
+    print("[2/3] 正在生成【核心附件二：16:9 极简科技白底路演答辩 PPT (PDF)】...")
     out_dir = DIST_DIR / "03_核心附件二_路演答辩PPT方案"
     out_dir.mkdir(parents=True, exist_ok=True)
     
-    # 20 页路演 PPT 高保真设计数据
+    # 20 页路演 PPT 高保真设计数据（提炼金句短句，突出关键大指标）
     slides_data = [
         {
             "num": 1,
@@ -376,9 +381,9 @@ def generate_roadshow_ppt_pdf():
             "title": "高校科研流程中的“事务性内耗黑洞”",
             "subtitle": "青年学者与高校师生 70%~80% 精力被格式、检索、清洗等机械重复劳动侵蚀",
             "cards": [
-                {"title": "文献调研准备周期长", "metric": "3~5 天", "desc": "跨库手动搜集，外文翻译生硬，跨领域脱靶杂质多，难以迅速抓住研究空白与脉络。"},
-                {"title": "学术引文格式返工率高", "metric": "35%+", "desc": "国标 GB/T 7714-2015 格式繁琐，卷号、期号、页码经常漏项，反复人工核对返工。"},
-                {"title": "非创造性工时占用高", "metric": "82.3%", "desc": "宝贵的科研黄金精力被锁死在非创造性机械事务中，极大阻碍原创性高水平突破。"}
+                {"title": "文献调研准备周期长", "metric": "3~5 天", "desc": "跨库手动搜集费时费力，跨领域脱靶杂质多，外文翻译生硬，难以快速把握研究脉络。"},
+                {"title": "学术引文格式返工率高", "metric": "35%+", "desc": "国标 GB/T 7714-2015 格式繁琐苛刻，卷号、期号、页码频频漏项，反复退回复核。"},
+                {"title": "非创造性工时占用严重", "metric": "82.3%", "desc": "宝贵科研精力锁死在非创造性机械事务中，严重制约高水平原创学术成果的孵化。"}
             ]
         },
         {
@@ -386,7 +391,7 @@ def generate_roadshow_ppt_pdf():
             "tag": "产业命题对标矩阵",
             "title": "精准响应：中国联通浙江分公司 5 大核心诉求",
             "subtitle": "告别简单套壳，面向高校严谨科研全流程交付 100% 对标的系统工程",
-            "table_headers": ["联通企业命题核心诉求", "UniScholar 落地工程方案", "达标关键性能指标"],
+            "table_headers": ["联通企业命题核心诉求", "UniScholar 落地工程方案", "达标关键量化指标"],
             "table_rows": [
                 ["1. 智能文献检索与筛选", "跨 OpenAlex / Europe PMC / arXiv 多源递归检索 + 抗脱靶算法", "相关度精准率 95.2%"],
                 ["2. 核心观点提取与综述生成", "Pydantic 强类型防幻觉抽取 + 纯中文学术纯化引擎", "结构化提取严密率 98.6%"],
@@ -399,24 +404,24 @@ def generate_roadshow_ppt_pdf():
             "num": 4,
             "tag": "技术瓶颈反思",
             "title": "为什么通用大模型做不好高校严谨科研？",
-            "subtitle": "学术研究具有极端严谨性，通用 LLM 面临“四大致命伤”",
+            "subtitle": "严肃科研具有极端准确性要求，通用大模型面临“四大致命伤”",
             "cards": [
-                {"title": "跨域脱靶 (Off-Target)", "metric": "搜索失焦", "desc": "缺少学术领域词元硬约束，搜出风马牛不相及的无关学科论文。"},
-                {"title": "学术造假 (Hallucination)", "metric": "伪造文献", "desc": "大模型凭空捏造不存在的学者名字、虚假期刊与伪造 DOI，触碰学术红线。"},
-                {"title": "洋泾浜机翻 (Jargon Chaos)", "metric": "生硬夹杂", "desc": "中英词汇机械混杂，严重缺乏地道严谨的中文学术话语体系。"},
-                {"title": "黑盒失控 (Black-Box)", "metric": "不可干预", "desc": "全自动跑死，中途学者无法插手介入，错一步导致最终成果全盘报废。"}
+                {"title": "跨域脱靶 (Off-Target)", "metric": "检索失焦", "desc": "缺少学术领域词元硬约束，检索召回大量风马牛不相及的跨学科无关文献。"},
+                {"title": "学术造假 (Hallucination)", "metric": "伪造引文", "desc": "大模型凭空捏造虚假学者、不存在的期刊与伪造 DOI，触碰学术诚信红线。"},
+                {"title": "洋泾浜机翻 (Jargon Chaos)", "metric": "生硬夹杂", "desc": "中英词汇机械混杂，假大空陈词泛滥，严重缺乏纯正地道的中文学术语境。"},
+                {"title": "黑盒失控 (Black-Box Trap)", "metric": "不可干预", "desc": "全自动不可逆，中途专家无法审查校准，前置一步走偏导致成果全盘报废。"}
             ]
         },
         {
             "num": 5,
             "tag": "系统总体技术架构",
             "title": "4 层工业级解耦架构：云网端一体协同",
-            "subtitle": "依托联通元景与万悟底座，打造高可用、端到端高校科研工作台",
+            "subtitle": "依托联通元景与万悟底座，打造高可靠、端到端高校科研工作台",
             "layers": [
-                {"name": "4. 应用层 (Application Layer)", "desc": "学术级 Gradio WebUI、人在回路交互控制台、一键成果导出套件"},
-                {"name": "3. 编排调度层 (Orchestration Layer)", "desc": "DAG 状态机调度引擎、HITL 拦截器、Checkpoint 原子级序列化持久化器"},
+                {"name": "4. 可视化应用层 (Application Layer)", "desc": "学术级 Gradio WebUI、双层人在回路交互控制台、一键成果导出套件"},
+                {"name": "3. 编排调度层 (Orchestration Layer)", "desc": "DAG 状态机调度引擎、HITL 拦截器、Checkpoint 本地原子级序列化持久化器"},
                 {"name": "2. 专业智能体层 (Specialized Agents)", "desc": "检索智能体、抽取纯化智能体、数据统计智能体、国标排版智能体、引文校验智能体"},
-                {"name": "1. 云网基座层 (Infrastructure Layer)", "desc": "中国联通元景大模型、中国联通万悟平台、OpenAlex / Europe PMC 知识源"}
+                {"name": "1. 云网基座层 (Infrastructure Layer)", "desc": "中国联通元景大模型、中国联通万悟平台、OpenAlex / Europe PMC 全球知识源"}
             ]
         },
         {
@@ -425,9 +430,9 @@ def generate_roadshow_ppt_pdf():
             "title": "基于有向无环图 (DAG) 的状态机调度引擎",
             "subtitle": "数学建模 G = (V, E, S)，单向收敛、零环路死锁与断点原子级容灾",
             "points": [
-                "状态机严格拓扑：INIT -> SEARCHING -> FILTERING -> STRUCTURING -> VISUALIZING -> FORMATTING -> COMPLETED",
-                "双层检查点机制：每完成一个复杂任务立即将上下文序列化为 JSON 快照持久化在本地",
-                "工业级容灾恢复：遇到断网、浏览器崩溃或误触刷新，系统支持从上次状态断点秒级无损热重启"
+                "状态机严格单向收敛：INIT -> SEARCHING -> FILTERING -> STRUCTURING -> VISUALIZING -> FORMATTING -> COMPLETED",
+                "双层检查点机制：每完成一个子任务，上下文自动序列化为 JSON 快照持久化于本地",
+                "工业级容灾自愈：遇到断网、浏览器崩溃或误触刷新，支持从断点 1 秒内无损热重启"
             ]
         },
         {
@@ -447,7 +452,7 @@ def generate_roadshow_ppt_pdf():
             "subtitle": "跨库并发召回，加权打分模型杜绝跨学科杂质渗透",
             "cards": [
                 {"title": "全球多源知识库并发调度", "metric": "3 大数据库", "desc": "OpenAlex (Polite 高速通道) + Europe PMC + arXiv 联合召回，保障学术权威覆盖。"},
-                {"title": "抗脱靶语义加权公式", "metric": "99.5% 杂质剔除", "desc": "得分 = 4.0×标题词元 + 1.0×摘要词元 - 跨学科惩罚项，强约束核心关键词必须命中。"}
+                {"title": "抗脱靶语义加权公式", "metric": "99.5% 杂质剔除", "desc": "得分 = 4.0×标题词元 + 1.5×摘要词元 - 跨学科惩罚项，强约束核心关键词必须命中。"}
             ]
         },
         {
@@ -456,8 +461,8 @@ def generate_roadshow_ppt_pdf():
             "title": "Pydantic 强类型防幻觉与纯中文学术纯化",
             "subtitle": "结构化约束输出 + 学术语言重塑，彻底根绝机翻夹杂腔调",
             "points": [
-                "Pydantic 强类型 Schema：严格规定背景、核心创新点、研究方法与结论的数据字段，杜绝大模型随意发散",
-                "学术语言纯化器：扫描并消除‘正如我们所知’、‘在当今时代’等 AI 假大空陈词，将英文术语标准化重构为纯正中文",
+                "Pydantic 强类型 Schema：严格规定背景、核心创新点、研究方法与结论字段，杜绝大模型随意发散",
+                "学术语言纯化器：扫描并消除‘正如我们所知’、‘在当今时代’等假大空陈词，重构为纯正学术汉语",
                 "分级大纲推演：由浅入深自动生成包含引言、核心机制、对照实验、未来展望的标准化三级科研综述结构"
             ]
         },
@@ -591,7 +596,7 @@ def generate_roadshow_ppt_pdf():
         }
     ]
     
-    # 渲染成 16:9 宽屏高质量 PPT HTML
+    # 渲染成 16:9 极简科技白底高质量 PPT HTML
     slides_html = []
     for s in slides_data:
         stype = s.get("type", "normal")
@@ -611,7 +616,7 @@ def generate_roadshow_ppt_pdf():
                     <span class="cbadge">中国联通万悟平台</span>
                     <span class="cbadge">DAG 状态机</span>
                     <span class="cbadge">人在回路 (HITL)</span>
-                    <span class="cbadge">释放 82.3% 工时</span>
+                    <span class="cbadge highlight">释放 82.3% 工时</span>
                 </div>
                 <div class="cover-info-card">
                     <p><strong>命题企业：</strong>{s['enterprise']}</p>
@@ -624,13 +629,13 @@ def generate_roadshow_ppt_pdf():
             points_li = "".join([f"<li>{p}</li>" for p in s["points"]])
             body_content = f"""
             <div class="end-content">
-                <div class="main-title" style="color: #E60012;">{title}</div>
-                <div class="main-subtitle" style="color: #94A3B8; font-size: 24px; margin-bottom: 30px;">{subtitle}</div>
+                <div class="main-title">{title}</div>
+                <div class="main-subtitle">{subtitle}</div>
                 <div class="end-card">
                     <ul>{points_li}</ul>
                 </div>
-                <div style="margin-top: 40px; font-size: 26px; color: #38BDF8; font-weight: 700;">
-                    欢迎各位专家评委提问交流！
+                <div style="margin-top: 35px; font-size: 26px; color: #2563EB; font-weight: 800;">
+                    欢迎各位专家评委提问指正！
                 </div>
             </div>
             """
@@ -696,7 +701,7 @@ def generate_roadshow_ppt_pdf():
         <div class="slide">
             {body_content}
             <div class="slide-footer">
-                <div class="footer-left">中国国际大学生创新大赛 · 产业命题赛道 | 命题企业：中国联通浙江分公司</div>
+                <div class="footer-left">中国国际大学生创新大赛 · 产业命题赛道 | 命题企业：中国联合网络通信有限公司浙江省分公司</div>
                 <div class="footer-right">长沙师范学院 经济管理学院 · UniScholar 团队 | {num}/20</div>
             </div>
         </div>
@@ -716,8 +721,8 @@ body {{
     margin: 0;
     padding: 0;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-    background: #000;
-    color: #FFF;
+    background: #FFFFFF;
+    color: #1E293B;
 }}
 .slide {{
     width: 16in;
@@ -726,49 +731,55 @@ body {{
     box-sizing: border-box;
     padding: 0.65in 0.85in;
     position: relative;
-    background: linear-gradient(135deg, #0A1128 0%, #101F42 60%, #172554 100%);
+    background: #FFFFFF;
+    border-top: 6px solid #E60012;
     overflow: hidden;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
 }}
-/* 装饰光效 */
+/* 轻量科技点缀 */
 .slide::before {{
     content: "";
     position: absolute;
-    top: -150px;
-    right: -150px;
-    width: 500px;
-    height: 500px;
-    background: radial-gradient(circle, rgba(230,0,18,0.15) 0%, rgba(37,99,235,0.08) 50%, transparent 80%);
-    border-radius: 50%;
+    top: 0;
+    right: 0;
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle, rgba(230,0,18,0.035) 0%, rgba(37,99,235,0.02) 60%, transparent 80%);
     pointer-events: none;
 }}
 /* 页眉 */
 .slide-header {{
     position: relative;
     z-index: 2;
-    border-bottom: 1px solid rgba(255,255,255,0.12);
-    padding-bottom: 16px;
+    border-bottom: 2px solid #F1F5F9;
+    padding-bottom: 14px;
 }}
 .slide-tag {{
     color: #E60012;
-    font-size: 14px;
-    font-weight: 700;
-    letter-spacing: 2px;
+    font-size: 13px;
+    font-weight: 800;
+    letter-spacing: 1.5px;
     text-transform: uppercase;
+    background: #FEF2F2;
+    border: 1px solid #FEE2E2;
+    padding: 3px 10px;
+    border-radius: 4px;
+    display: inline-block;
     margin-bottom: 6px;
 }}
 .slide-title {{
     font-size: 32px;
     font-weight: 800;
-    color: #FFFFFF;
+    color: #0F2C59;
     letter-spacing: -0.5px;
 }}
 .slide-subtitle {{
     font-size: 16px;
-    color: #94A3B8;
+    color: #475569;
     margin-top: 6px;
+    font-weight: 500;
 }}
 /* 主体内容 */
 .slide-body {{
@@ -789,7 +800,7 @@ body {{
     align-items: center;
     font-size: 13px;
     color: #64748B;
-    border-top: 1px solid rgba(255,255,255,0.08);
+    border-top: 1px solid #E2E8F0;
     padding-top: 12px;
 }}
 /* 封面 */
@@ -804,16 +815,14 @@ body {{
     font-size: 64px;
     font-weight: 900;
     letter-spacing: -1px;
-    background: linear-gradient(90deg, #FFFFFF 0%, #BAE6FD 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    margin-bottom: 10px;
+    color: #0F2C59;
+    margin-bottom: 8px;
 }}
 .cover-content .main-subtitle {{
     font-size: 24px;
-    color: #38BDF8;
-    font-weight: 600;
-    margin-bottom: 30px;
+    color: #2563EB;
+    font-weight: 700;
+    margin-bottom: 28px;
 }}
 .cover-badge-row {{
     display: flex;
@@ -821,33 +830,36 @@ body {{
     margin-bottom: 35px;
 }}
 .cbadge {{
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.15);
-    padding: 8px 16px;
+    background: #F8FAFC;
+    border: 1px solid #CBD5E1;
+    padding: 8px 18px;
     border-radius: 6px;
-    font-size: 14px;
-    color: #E2E8F0;
+    font-size: 14.5px;
+    color: #334155;
+    font-weight: 600;
 }}
 .cbadge.highlight {{
-    background: rgba(230,0,18,0.2);
-    border-color: #E60012;
-    color: #FECDD3;
+    background: #FEF2F2;
+    border-color: #FECDD3;
+    color: #E60012;
     font-weight: 700;
 }}
 .cover-info-card {{
-    background: rgba(15,23,42,0.6);
-    border: 1px solid rgba(255,255,255,0.1);
-    border-radius: 10px;
-    padding: 18px 24px;
-    width: 650px;
+    background: #F8FAFC;
+    border: 1px solid #E2E8F0;
+    border-left: 5px solid #E60012;
+    border-radius: 8px;
+    padding: 18px 26px;
+    width: 680px;
+    box-shadow: 0 4px 16px rgba(15,23,42,0.04);
 }}
 .cover-info-card p {{
     margin: 6px 0;
     font-size: 15px;
-    color: #CBD5E1;
+    color: #334155;
 }}
 .cover-info-card strong {{
-    color: #38BDF8;
+    color: #0F2C59;
 }}
 /* 卡片网格 */
 .cards-grid {{
@@ -865,41 +877,42 @@ body {{
     grid-template-columns: 1fr 1fr 1fr 1fr;
 }}
 .content-card {{
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.1);
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
     border-radius: 12px;
     padding: 24px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
-}}
-.content-card:hover {{
-    border-color: #38BDF8;
+    box-shadow: 0 4px 14px rgba(15,23,42,0.04);
 }}
 .card-title {{
-    font-size: 19px;
+    font-size: 18px;
     font-weight: 700;
-    color: #F8FAFC;
-    margin-bottom: 12px;
+    color: #0F2C59;
+    margin-bottom: 10px;
+    border-left: 4px solid #2563EB;
+    padding-left: 10px;
 }}
 .card-metric {{
-    font-size: 34px;
-    font-weight: 800;
+    font-size: 40px;
+    font-weight: 900;
     color: #E60012;
-    margin-bottom: 12px;
+    margin: 8px 0;
     letter-spacing: -1px;
 }}
 .card-desc {{
-    font-size: 14px;
-    color: #94A3B8;
+    font-size: 14.5px;
+    color: #475569;
     line-height: 1.6;
 }}
 /* 表格样式 */
 .table-wrap {{
     width: 100%;
-    background: rgba(255,255,255,0.02);
+    background: #FFFFFF;
     border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid #E2E8F0;
+    box-shadow: 0 4px 12px rgba(15,23,42,0.04);
     overflow: hidden;
 }}
 .ppt-table {{
@@ -908,20 +921,20 @@ body {{
     font-size: 15px;
 }}
 .ppt-table th {{
-    background: rgba(230,0,18,0.15);
-    color: #FECDD3;
+    background: #FEF2F2;
+    color: #991B1B;
     padding: 14px 18px;
     text-align: left;
     font-weight: 700;
-    border-bottom: 1px solid rgba(255,255,255,0.15);
+    border-bottom: 2px solid #E60012;
 }}
 .ppt-table td {{
     padding: 13px 18px;
-    border-bottom: 1px solid rgba(255,255,255,0.06);
-    color: #E2E8F0;
+    border-bottom: 1px solid #E2E8F0;
+    color: #1E293B;
 }}
 .ppt-table tr:nth-child(even) {{
-    background: rgba(255,255,255,0.03);
+    background: #F8FAFC;
 }}
 /* 架构层 */
 .arch-stack {{
@@ -931,22 +944,24 @@ body {{
     width: 100%;
 }}
 .arch-layer {{
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(56,189,248,0.3);
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-left: 6px solid #2563EB;
     border-radius: 8px;
-    padding: 16px 22px;
+    padding: 16px 24px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    box-shadow: 0 2px 8px rgba(15,23,42,0.04);
 }}
 .arch-name {{
     font-size: 18px;
     font-weight: 700;
-    color: #38BDF8;
+    color: #0F2C59;
 }}
 .arch-desc {{
     font-size: 15px;
-    color: #CBD5E1;
+    color: #475569;
 }}
 /* 列表项 */
 .points-wrap {{
@@ -956,13 +971,15 @@ body {{
     width: 100%;
 }}
 .point-item {{
-    background: rgba(255,255,255,0.03);
-    border-left: 4px solid #38BDF8;
-    padding: 18px 22px;
+    background: #FFFFFF;
+    border: 1px solid #E2E8F0;
+    border-left: 5px solid #2563EB;
+    padding: 18px 24px;
     border-radius: 0 8px 8px 0;
-    font-size: 18px;
-    color: #F1F5F9;
+    font-size: 17px;
+    color: #1E293B;
     line-height: 1.6;
+    box-shadow: 0 2px 8px rgba(15,23,42,0.04);
 }}
 .point-bullet {{
     color: #E60012;
@@ -978,17 +995,26 @@ body {{
     text-align: center;
 }}
 .end-content .main-title {{
-    font-size: 68px;
+    font-size: 64px;
     font-weight: 900;
-    margin-bottom: 10px;
+    color: #E60012;
+    margin-bottom: 12px;
+}}
+.end-content .main-subtitle {{
+    font-size: 22px;
+    color: #475569;
+    font-weight: 600;
+    margin-bottom: 30px;
 }}
 .end-card {{
-    background: rgba(15,23,42,0.7);
-    border: 1px solid rgba(255,255,255,0.12);
+    background: #F8FAFC;
+    border: 1px solid #CBD5E1;
+    border-top: 4px solid #0F2C59;
     border-radius: 12px;
     padding: 24px 40px;
-    width: 700px;
+    width: 750px;
     text-align: left;
+    box-shadow: 0 4px 16px rgba(15,23,42,0.06);
 }}
 .end-card ul {{
     margin: 0;
@@ -996,7 +1022,7 @@ body {{
 }}
 .end-card li {{
     font-size: 17px;
-    color: #CBD5E1;
+    color: #334155;
     margin: 10px 0;
 }}
 </style>
@@ -1013,48 +1039,46 @@ body {{
     run_headless_print(temp_html, pdf_path)
     if temp_html.exists():
         temp_html.unlink()
-    print(f"  ✓ 16:9 路演答辩 PPT (PDF) 已直接输出: {pdf_path.name} ({pdf_path.stat().st_size // 1024} KB)")
+    print(f"  ✓ 16:9 极简科技白底 PPT (PDF) 已直接输出: {pdf_path.name} ({pdf_path.stat().st_size // 1024} KB)")
 
-def update_summary():
-    print("[3/3] 正在更新总清单交付说明...")
-    summary = f"""# 🏆 UniScholar 大赛材料交付清单 (所有文件已直接输出完毕)
-
-全国大学生创业服务网 (cy.ncss.cn) · 产业命题赛道所需的所有文件已直接生成在当前文件夹中，无需任何额外手动转换！
-
----
-
-## 📂 交付文件夹全景：
-
-### 1. 【网页直接填报文案】
-📁 目录：`01_平台网页直接填报文案/`
-* `全国大学生创业服务网_填报文案库.txt` (纯文本，直接 Ctrl+A 复制，直接粘贴到平台表单中)
-* 包含：300字/800字两版作品简介、团队成员分工、企业命题对接说明。
-
-### 2. 【核心附件一】技术方案与研发报告 (直接上传 PDF)
-📁 目录：`02_核心附件一_技术方案与研发报告/`
-* ⭐️ **`UniScholar_技术方案与研发报告.pdf`**  <-- 【直接点击上传此文件】(A4 规范排版，包含封面、摘要、目录与五大功能)
-* 📄 `UniScholar_技术方案与研发报告.docx` (Word 格式，供评阅或微调使用)
-* 📄 `UniScholar_技术方案与研发报告.md` (Markdown 源码)
-
-### 3. 【核心附件二】路演答辩 PPT (直接上传 PDF)
-📁 目录：`03_核心附件二_路演答辩PPT方案/`
-* ⭐️ **`UniScholar_路演答辩PPT.pdf`**  <-- 【直接点击上传此文件】(16:9 宽屏科技风，全套 20 页高清路演答辩幻灯片，联通红科技蓝高颜值视觉)
-* 📄 `UniScholar_路演答辩PPT逐页文案与视觉指引.md` (包含每页演讲词与设计要点)
-
-### 4. 【备用佐证附件】纯净源码交付包 (选填/佐证材料)
-📁 目录：`04_备用佐证_纯净源码与部署说明/`
-* 📦 `UniScholar_SourceCode_v2.4.0.zip` (纯净工程源码压缩包，已剔除临时文件与缓存)
-* 📄 `本地部署与运行说明.md` (内附双击 run.bat 运行说明与 GitHub 开源地址)
-
----
-长沙师范学院 经济管理学院 · UniScholar 团队
-"""
-    (DIST_DIR / "提交物清点总览_请先读我.md").write_text(summary, encoding="utf-8")
-    (DIST_DIR / "提交物清点总览_请先读我.txt").write_text(summary, encoding="utf-8")
-    print("  ✓ 交付总览说明已更新")
+def sync_to_top_delivery_folder():
+    print("\n=======================================================")
+    print(f"[3/3] 正在全量同步更新至桌面交付目录: {TOP_TARGET_DIR.name} ...")
+    TOP_TARGET_DIR.mkdir(parents=True, exist_ok=True)
+    
+    # 1. 复制文件一 (PDF + DOCX)
+    f1_pdf = DIST_DIR / "02_核心附件一_技术方案与研发报告" / "UniScholar_技术方案与研发报告.pdf"
+    f1_doc = DIST_DIR / "02_核心附件一_技术方案与研发报告" / "UniScholar_技术方案与研发报告.docx"
+    if f1_pdf.exists():
+        shutil.copy(f1_pdf, TOP_TARGET_DIR / "【文件一】UniScholar_技术方案与研发报告.pdf")
+    if f1_doc.exists():
+        shutil.copy(f1_doc, TOP_TARGET_DIR / "【文件一】UniScholar_技术方案与研发报告.docx")
+        
+    # 2. 复制文件二 (PPT PDF)
+    f2_pdf = DIST_DIR / "03_核心附件二_路演答辩PPT方案" / "UniScholar_路演答辩PPT.pdf"
+    if f2_pdf.exists():
+        shutil.copy(f2_pdf, TOP_TARGET_DIR / "【文件二】UniScholar_路演答辩PPT.pdf")
+        
+    # 3. 复制文件三 (PDF + DOCX + TXT)
+    f3_pdf = DIST_DIR / "01_平台网页直接填报文案" / "UniScholar_作品简介与团队介绍.pdf"
+    f3_doc = DIST_DIR / "01_平台网页直接填报文案" / "UniScholar_作品简介与团队介绍.docx"
+    f3_txt = DIST_DIR / "01_平台网页直接填报文案" / "全国大学生创业服务网_填报文案库.txt"
+    if f3_pdf.exists():
+        shutil.copy(f3_pdf, TOP_TARGET_DIR / "【文件三】UniScholar_作品简介与团队介绍.pdf")
+    if f3_doc.exists():
+        shutil.copy(f3_doc, TOP_TARGET_DIR / "【文件三】UniScholar_作品简介与团队介绍.docx")
+    if f3_txt.exists():
+        shutil.copy(f3_txt, TOP_TARGET_DIR / "【网页复制文本】全国大学生创业服务网_填报文案库.txt")
+        
+    # 4. 复制源码包
+    f4_zip = DIST_DIR / "04_备用佐证_纯净源码与部署说明" / "UniScholar_SourceCode_v2.4.0.zip"
+    if f4_zip.exists():
+        shutil.copy(f4_zip, TOP_TARGET_DIR / "【附加佐证】UniScholar_纯净源码包_v2.4.0.zip")
+        
+    print(f"  ✓ 桌面交付文件夹《{TOP_TARGET_DIR.name}》已全部同步更新为最新优化版本！")
 
 if __name__ == "__main__":
     generate_technical_proposal_files()
     generate_roadshow_ppt_pdf()
-    update_summary()
-    print("\n🎉 全部提交物已直接生成并存入: submission_package 文件夹中！")
+    sync_to_top_delivery_folder()
+    print("\n🎉 全部优化与交付物重新生成完成！")
