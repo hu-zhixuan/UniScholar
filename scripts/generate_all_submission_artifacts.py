@@ -686,28 +686,32 @@ hr {{
 
 /* 真实前端实况截图卡片容器 */
 .figure-container {{
-  margin: 18px 0;
-  padding: 10px;
+  margin: 14px auto;
+  padding: 8px;
   background: #F8FAFC;
   border: 1px solid #CBD5E1;
-  border-radius: 8px;
+  border-radius: 6px;
   text-align: center;
   page-break-inside: avoid;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.04);
+  max-width: 620px;
 }}
 .figure-img {{
   max-width: 100%;
+  max-height: 280px;
+  width: auto;
   height: auto;
-  border-radius: 6px;
+  object-fit: contain;
+  border-radius: 4px;
   border: 1px solid #E2E8F0;
   display: block;
-  margin: 0 auto 8px auto;
+  margin: 0 auto 6px auto;
 }}
 .figure-caption {{
-  font-size: 9pt;
+  font-size: 9.5pt;
   font-weight: 700;
   color: #334155;
-  margin-top: 6px;
+  margin-top: 4px;
   letter-spacing: 0.3px;
 }}
 
