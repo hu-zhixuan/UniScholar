@@ -110,7 +110,7 @@ def generate_screenshots():
         </div>
         <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:6px; padding:12px 16px; margin-bottom:20px; display:flex; justify-content:space-between; align-items:center;">
             <div style="font-size:12.5px; color:#475569;">
-                <b>🚀 模式说明</b>：支持【人在回路 (HITL)】专家协同干预模式（可在文献初筛与大纲推演两处挂起审查），亦支持【一键全自主交付】模式。
+                <b>模式说明</b>：支持【人在回路 (HITL)】专家协同干预模式（可在文献初筛与大纲推演两处挂起审查），亦支持【一键全自主交付】模式。
             </div>
             <div style="display:flex; gap:12px;">
                 <button style="background:#F1F5F9; border:1px solid #CBD5E1; color:#334155; padding:8px 16px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer;">一键全自主闭环交付</button>
@@ -176,7 +176,7 @@ def generate_screenshots():
     <div style="background:#FFFFFF; border:1px solid #CBD5E1; border-radius:10px; padding:20px 24px; margin:20px 24px; box-shadow:0 2px 8px rgba(15,23,42,0.04);">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; border-bottom:1px solid #F1F5F9; padding-bottom:12px;">
             <div style="display:flex; align-items:center; gap:14px;">
-                <span style="font-weight:800; font-size:15px; color:#0F172A;">🛑 人在回路 (HITL) 决策闸口：候选文献池精选</span>
+                <span style="font-weight:800; font-size:15px; color:#0F172A;">人在回路 (HITL) 决策闸口：候选文献池精选</span>
                 {badge_html_02}
             </div>
             <div style="display:flex; gap:8px;">
@@ -188,7 +188,7 @@ def generate_screenshots():
         </div>
         <div style="background:#FEF2F2; border:1px solid #FECACA; border-left:4px solid #E60012; border-radius:6px; padding:10px 16px; margin-bottom:16px; display:flex; justify-content:space-between; align-items:center;">
             <div style="font-size:12.5px; color:#7F1D1D;">
-                <strong>💡 学者交互指引</strong>：系统已执行“领域核心词元强约束”初筛，剔除跨学科脱靶杂音。当前推荐 6 篇最具代表性基石文献，学者可自由勾选微调。确认后状态机将无缝恢复。
+                <strong>学者交互指引</strong>：系统已执行“领域核心词元强约束”初筛，剔除跨学科脱靶杂音。当前推荐 6 篇最具代表性基石文献，学者可自由勾选微调。确认后状态机将无缝恢复。
             </div>
             <button style="background:#E60012; color:#FFFFFF; border:none; padding:8px 18px; border-radius:6px; font-size:13px; font-weight:700; cursor:pointer; box-shadow:0 2px 6px rgba(230,0,18,0.25);">确认核心文献并恢复运行 ➔</button>
         </div>
@@ -231,11 +231,11 @@ def generate_screenshots():
         
         <!-- 标签栏 -->
         <div style="display:flex; gap:20px; border-bottom:1px solid #E2E8F0; margin-bottom:18px; font-size:13px;">
-            <span style="color:#2563EB; font-weight:700; border-bottom:2px solid #2563EB; padding-bottom:8px;">📄 学术综述初稿与大纲规划</span>
-            <span style="color:#64748B; font-weight:500; padding-bottom:8px;">📊 核心文献要素萃取矩阵</span>
-            <span style="color:#64748B; font-weight:500; padding-bottom:8px;">📈 实证数据统计与科研制图</span>
-            <span style="color:#64748B; font-weight:500; padding-bottom:8px;">📚 规范引文格式库 (GB/T 7714)</span>
-            <span style="color:#64748B; font-weight:500; padding-bottom:8px;">⚙️ 元景万悟工作流标准配置</span>
+            <span style="color:#2563EB; font-weight:700; border-bottom:2px solid #2563EB; padding-bottom:8px;">学术综述初稿与大纲规划</span>
+            <span style="color:#64748B; font-weight:500; padding-bottom:8px;">核心文献要素萃取矩阵</span>
+            <span style="color:#64748B; font-weight:500; padding-bottom:8px;">实证数据统计与科研制图</span>
+            <span style="color:#64748B; font-weight:500; padding-bottom:8px;">规范引文格式库 (GB/T 7714)</span>
+            <span style="color:#64748B; font-weight:500; padding-bottom:8px;">元景万悟工作流标准配置</span>
         </div>
         
         <!-- 综述正文与引文验伪展示 -->
@@ -253,7 +253,7 @@ def generate_screenshots():
             </p>
             <p style="margin-bottom:12px;">
                 <strong>三、多模型协同与动态路由：</strong>
-                在多模型调度层面，《Dynamic TokenRouter: Adaptive Gateway for Domain Agents》<span style="background:#DCFCE7; color:#15803D; border:1px solid #86EFAC; font-size:11px; font-weight:700; padding:1px 6px; border-radius:4px; margin-left:4px;">✓ 已核验证实引文</span>验证了根据任务类型分发算力的有效性。相较于单一大模型直接生成，通过 Citation Validator 双向核验矩阵，正文中所有文献均被追溯至真实知识库白名单，彻底根除了学术造假风险。
+                在多模型调度层面，《Dynamic TokenRouter: Adaptive Gateway for Domain Agents》<span style="background:#DCFCE7; color:#15803D; border:1px solid #86EFAC; font-size:11px; font-weight:700; padding:1px 6px; border-radius:4px; margin-left:4px;">✓ 已核验证实引文</span>验证了根据任务类型分发算力的有效性。相较于单一大模型直接生成，通过 Citation Validator 双向核验矩阵，正文中所有文献均被追溯至真实知识库白名单，有效规避了虚构文献混入学术综述的风险。
             </p>
         </div>
     </div>
