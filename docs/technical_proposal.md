@@ -401,9 +401,11 @@ UniScholar 研发了 **Citation Validator 双向白名单引文交叉校验器**
   </div>
 </div>
 
+在文献检索完成后，系统挂起并呈现候选文献池（图 4-1）。学者可直观查看每篇文献的标题、发表年份、来源期刊及相关度评分，自主勾选 5~8 篇核心文献（支持一键推荐 Top 6），确认后系统自动推进后续流程。
+
 <div class="figure-container">
-  <img class="figure-img" src="images/screenshot_hitl_selection.png" alt="人在回路 (HITL) 20 篇候选文献智能遴选与抗脱靶打分界面实况">
-  <div class="figure-caption">图 4-1 人在回路 (HITL) 20 篇候选文献智能遴选与抗脱靶打分界面实况（支持一键推荐 Top 6 与多维打分可视化）</div>
+  <img class="figure-img" src="images/screenshot_hitl_selection.png" alt="文献初筛与人在回路交互界面">
+  <div class="figure-caption">图 4-1 文献初筛与人在回路交互界面</div>
 </div>
 
 ## 4.2 核心功能二：文献核心信息抽取与综述框架生成
@@ -437,9 +439,11 @@ class PaperFeature(BaseModel):
 * 第五章：未来研究前沿与发展趋势（提出跨尺度建模、因果干预等高价值方向）；
 * 第六章：总结与结语。
 
+在综述生成阶段，系统依据学者确认的大纲与精选文献合成初稿，并通过 Citation Validator 对正文引文进行真实性核验（图 4-2）。正文中成功溯源至知识库白名单的引文自动标注绿色核验标签，未收录引文则标注提示标签，确保学术综述真实可信。
+
 <div class="figure-container">
-  <img class="figure-img" src="images/screenshot_citation_validator.png" alt="综述初稿推演与 Citation Validator 双向引文验伪实况">
-  <div class="figure-caption">图 4-2 综述初稿推演与 Citation Validator 双向引文验伪实况看板（绿色标识已核验证实引文，琥珀色预警疑似未收录）</div>
+  <img class="figure-img" src="images/screenshot_citation_validator.png" alt="学术综述生成与引文核验界面">
+  <div class="figure-caption">图 4-2 学术综述生成与引文核验界面</div>
 </div>
 
 ## 4.3 核心功能三：实验数据初步统计与科研可视化
@@ -493,10 +497,11 @@ class PaperFeature(BaseModel):
 * 面板直观展示每篇文献的题目、中译摘要、年份、来源及相关度得分；
 * 学者可在勾选框中自主选择，支持【一键推荐 Top 6 篇】、【全部勾选】、【清空选择】、【反选】等快捷工具；
 * 学者点击【锁定精选文献并恢复工作流运行】后，系统读取 Checkpoint 快照，合并学者勾选数据，状态机在 0.5 秒内无缝切回 `RUNNING`，顺畅推进后续的要素抽取、大纲推演与综述初稿合成。全过程兼顾了自动化的高效性与专家决策的主导权。
+UniScholar 工作台主界面清晰展示了端到端科研工作流的流转拓扑与当前进度（图 4-3）。系统涵盖从意图规划、文献初筛、要素抽取、大纲推演到综述合成、数据统计与引文排版的完整链条，并在关键节点提供人机协同与状态自愈能力。
 
 <div class="figure-container">
-  <img class="figure-img" src="images/screenshot_workbench_dag.png" alt="UniScholar 工作台主界面与 DAG 状态机流转拓扑实况">
-  <div class="figure-caption">图 4-3 UniScholar 工作台主界面与 DAG 状态机流转拓扑实况看板（展示六大里程碑节点流转与实时日志审计）</div>
+  <img class="figure-img" src="images/screenshot_workbench_dag.png" alt="工作台主界面与状态机流程拓扑">
+  <div class="figure-caption">图 4-3 工作台主界面与状态机流程拓扑</div>
 </div>
 
 # 第五章 团队分工与产教协同落地效益
