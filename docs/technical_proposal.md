@@ -401,6 +401,11 @@ UniScholar 研发了 **Citation Validator 双向白名单引文防幻觉交叉�
   </div>
 </div>
 
+<div class="figure-container">
+  <img class="figure-img" src="images/screenshot_hitl_selection.png" alt="人在回路 (HITL) 20 篇候选文献智能遴选与抗脱靶打分界面实况">
+  <div class="figure-caption">图 4-1 人在回路 (HITL) 20 篇候选文献智能遴选与抗脱靶打分界面实况（支持一键推荐 Top 6 与多维打分可视化）</div>
+</div>
+
 ## 4.2 核心功能二：文献核心信息抽取与综述框架生成
 
 ### 1. Pydantic Schema 强类型防幻觉要素提取
@@ -431,6 +436,11 @@ class PaperFeature(BaseModel):
 * 第四章：关键学术挑战与现有局限（深入剖析因果解耦、实验范式一致性等瓶颈）；
 * 第五章：未来研究前沿与发展趋势（提出跨尺度建模、因果干预等高价值方向）；
 * 第六章：总结与结语。
+
+<div class="figure-container">
+  <img class="figure-img" src="images/screenshot_citation_validator.png" alt="综述初稿推演与 Citation Validator 双向引文验伪实况">
+  <div class="figure-caption">图 4-2 综述初稿推演与 Citation Validator 双向引文验伪实况看板（绿色标识已核验证实引文，琥珀色预警疑似幻觉）</div>
+</div>
 
 ## 4.3 核心功能三：实验数据初步统计与科研可视化
 
@@ -483,6 +493,11 @@ class PaperFeature(BaseModel):
 * 面板直观展示每篇文献的题目、中译摘要、年份、来源及相关度得分；
 * 学者可在勾选框中自主选择，支持【一键推荐 Top 6 篇】、【全部勾选】、【清空选择】、【反选】等快捷工具；
 * 学者点击【锁定精选文献并恢复工作流运行】后，系统读取 Checkpoint 快照，合并学者勾选数据，状态机在 0.5 秒内无缝切回 `RUNNING`，顺畅推进后续的要素抽取、大纲推演与综述初稿合成。全过程兼顾了自动化的高效性与专家决策的主导权。
+
+<div class="figure-container">
+  <img class="figure-img" src="images/screenshot_workbench_dag.png" alt="UniScholar 工作台主界面与 DAG 状态机流转拓扑实况">
+  <div class="figure-caption">图 4-3 UniScholar 工作台主界面与 DAG 状态机流转拓扑实况看板（展示六大里程碑节点流转与实时日志审计）</div>
+</div>
 
 # 第五章 团队分工与产教协同落地效益
 

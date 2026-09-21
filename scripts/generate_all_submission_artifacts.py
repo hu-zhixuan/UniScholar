@@ -41,7 +41,7 @@ def run_headless_print(html_path: Path, pdf_path: Path):
         f"--print-to-pdf={str(pdf_path)}",
         html_path.as_uri()
     ]
-    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, encoding='utf-8', errors='ignore')
     if not pdf_path.exists() or pdf_path.stat().st_size == 0:
         raise RuntimeError(f"PDF 生成失败: {res.stderr}")
 
@@ -50,8 +50,14 @@ def generate_technical_proposal_files():
     print("[1/3] 正在生成【核心附件一：技术方案与研发报告】(PDF + Word)...")
     md_file = DOCS_DIR / "technical_proposal.md"
     out_dir = DIST_DIR / "02_核心附件一_技术方案与研发报告"
-    out_dir.mkdir(parents=True, exist_ok=True)
-    
+    # 0. 同步图片目录
+    img_src = DOCS_DIR / "images"
+    img_dst = out_dir / "images"
+    if img_src.exists():
+        if img_dst.exists():
+            shutil.rmtree(img_dst)
+        shutil.copytree(img_src, img_dst)
+        
     # 1. 复制 md
     shutil.copy(md_file, out_dir / "UniScholar_技术方案与研发报告.md")
     
@@ -82,6 +88,7 @@ def generate_technical_proposal_files():
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
+<base href="{DOCS_DIR.as_uri()}/">
 <title>UniScholar 联智学者 · 技术方案文档与研发报告</title>
 <style>
 @page {{
@@ -675,6 +682,33 @@ hr {{
   font-size: 8.5pt;
   color: #475569;
   line-height: 1.45;
+}}
+
+/* 真实前端实况截图卡片容器 */
+.figure-container {{
+  margin: 18px 0;
+  padding: 10px;
+  background: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  border-radius: 8px;
+  text-align: center;
+  page-break-inside: avoid;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+}}
+.figure-img {{
+  max-width: 100%;
+  height: auto;
+  border-radius: 6px;
+  border: 1px solid #E2E8F0;
+  display: block;
+  margin: 0 auto 8px auto;
+}}
+.figure-caption {{
+  font-size: 9pt;
+  font-weight: 700;
+  color: #334155;
+  margin-top: 6px;
+  letter-spacing: 0.3px;
 }}
 
 /* 分页控制与首元素间距 */
@@ -1451,6 +1485,14 @@ def sync_to_top_delivery_folder():
     print(f"[3/3] 正在全量同步更新至桌面交付目录: {TOP_TARGET_DIR.name} ...")
     TOP_TARGET_DIR.mkdir(parents=True, exist_ok=True)
     
+    # 0. 复制图片目录
+    img_src = DOCS_DIR / "images"
+    img_dst = TOP_TARGET_DIR / "images"
+    if img_src.exists():
+        if img_dst.exists():
+            shutil.rmtree(img_dst)
+        shutil.copytree(img_src, img_dst)
+        
     # 1. 复制文件一 (PDF + DOCX)
     f1_pdf = DIST_DIR / "02_核心附件一_技术方案与研发报告" / "UniScholar_技术方案与研发报告.pdf"
     f1_doc = DIST_DIR / "02_核心附件一_技术方案与研发报告" / "UniScholar_技术方案与研发报告.docx"
@@ -1478,7 +1520,10 @@ def sync_to_top_delivery_folder():
     # 4. 复制源码包
     f4_zip = DIST_DIR / "04_备用佐证_纯净源码与部署说明" / "UniScholar_SourceCode_v2.4.0.zip"
     if f4_zip.exists():
-        shutil.copy(f4_zip, TOP_TARGET_DIR / "【附加佐证】UniScholar_纯净源码包_v2.4.0.zip")
+        try:
+            shutil.copy(f4_zip, TOP_TARGET_DIR / "【附加佐证】UniScholar_纯净源码包_v2.4.0.zip")
+        except Exception as e:
+            print(f"  ! 源码包复制跳过（可能已被其他程序占用）: {e}")
         
     print(f"  ✓ 桌面交付文件夹《{TOP_TARGET_DIR.name}》已全部同步更新为最新优化版本！")
 
