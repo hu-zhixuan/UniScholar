@@ -93,11 +93,16 @@ def generate_technical_proposal_files():
 <style>
 @page {{
   size: A4;
-  margin: 22mm 18mm 22mm 18mm;
+  margin: 20mm 18mm 20mm 18mm;
   @bottom-center {{
     content: counter(page);
     font-size: 9pt;
     color: #64748B;
+  }}
+}}
+@page:first {{
+  @bottom-center {{
+    content: none;
   }}
 }}
 body {{
@@ -115,22 +120,22 @@ body {{
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  border-top: 6px solid #E60012;
+  border-top: 5px solid #2563EB;
   padding-top: 30px;
 }}
 .cover-header {{
-  border-left: 4px solid #1E3A8A;
+  border-left: 3px solid #2563EB;
   padding-left: 14px;
 }}
 .cover-tag {{
-  color: #E60012;
-  font-weight: 800;
-  font-size: 12pt;
-  letter-spacing: 1.5px;
+  color: #2563EB;
+  font-weight: 700;
+  font-size: 11pt;
+  letter-spacing: 1px;
 }}
 .cover-subtag {{
   color: #475569;
-  font-size: 10.5pt;
+  font-size: 10pt;
   margin-top: 4px;
 }}
 .cover-main {{
@@ -144,30 +149,30 @@ body {{
   margin-bottom: 12px;
 }}
 .cover-subtitle {{
-  font-size: 13.5pt;
-  color: #2563EB;
+  font-size: 13pt;
+  color: #475569;
   font-weight: 600;
   line-height: 1.4;
   margin-bottom: 22px;
 }}
 .cover-badge {{
   display: inline-block;
-  background: #EFF6FF;
-  color: #1D4ED8;
-  border: 1px solid #BFDBFE;
+  background: #F1F5F9;
+  color: #1E293B;
+  border: 1px solid #CBD5E1;
   padding: 6px 14px;
   border-radius: 4px;
-  font-size: 10.5pt;
+  font-size: 10pt;
   font-weight: 600;
 }}
 .cover-meta-table {{
   width: 100%;
   border-collapse: collapse;
   margin-top: 35px;
-  background: #F8FAFC;
+  background: #FFFFFF;
   border-radius: 6px;
   overflow: hidden;
-  border: 1px solid #CBD5E1;
+  border: 1px solid #E2E8F0;
 }}
 .cover-meta-table td {{
   padding: 9px 15px;
@@ -178,7 +183,7 @@ body {{
   width: 28%;
   color: #475569;
   font-weight: 700;
-  background: #F1F5F9;
+  background: #F8FAFC;
 }}
 .cover-meta-table td.val {{
   color: #0F172A;
@@ -194,21 +199,21 @@ body {{
 
 /* 正文标题与段落 */
 h1 {{
-  font-size: 18pt;
+  font-size: 17pt;
   color: #0F172A;
-  border-bottom: 2.5px solid #E60012;
-  padding-bottom: 8px;
-  margin-top: 36px;
-  margin-bottom: 16px;
+  border-bottom: 2px solid #2563EB;
+  padding-bottom: 6px;
+  margin-top: 32px;
+  margin-bottom: 14px;
   page-break-before: always;
 }}
 h2 {{
-  font-size: 13.5pt;
-  color: #1E3A8A;
-  border-left: 4px solid #2563EB;
+  font-size: 13pt;
+  color: #1E293B;
+  border-left: 3px solid #2563EB;
   padding-left: 10px;
-  margin-top: 24px;
-  margin-bottom: 12px;
+  margin-top: 22px;
+  margin-bottom: 10px;
   page-break-after: avoid;
 }}
 h3 {{
@@ -254,13 +259,13 @@ tr {{
   page-break-inside: avoid;
 }}
 th {{
-  background: #F1F5F9;
+  background: #F8FAFC;
   color: #0F172A;
   font-weight: 700;
   text-align: left;
   padding: 8px 12px;
-  border: 1px solid #CBD5E1;
-  border-top: 2px solid #E60012;
+  border: 1px solid #E2E8F0;
+  border-top: 2px solid #2563EB;
 }}
 td {{
   padding: 8px 12px;
@@ -275,20 +280,23 @@ tr:nth-child(even) {{
 pre {{
   background: #0F172A;
   color: #F8FAFC;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-radius: 6px;
   font-family: "JetBrains Mono", Consolas, Monaco, monospace;
-  font-size: 8.5pt;
-  line-height: 1.45;
-  overflow-x: auto;
+  font-size: 8pt;
+  line-height: 1.42;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  word-break: break-all;
+  overflow: hidden !important;
   page-break-inside: avoid;
-  margin: 14px 0;
+  margin: 12px 0;
   border: 1px solid #334155;
 }}
 code {{
   font-family: "JetBrains Mono", Consolas, Monaco, monospace;
   background: #F1F5F9;
-  color: #E60012;
+  color: #2563EB;
   padding: 2px 5px;
   border-radius: 4px;
   font-size: 9pt;
@@ -379,29 +387,29 @@ hr {{
   background: #FFFFFF;
 }}
 .arch-card.layer-app {{
-  border-left: 5px solid #2563EB;
+  border-left: 4px solid #2563EB;
   background: #F8FAFC;
 }}
 .arch-card.layer-orch {{
-  border-left: 5px solid #4F46E5;
+  border-left: 4px solid #3B82F6;
   background: #F8FAFC;
 }}
 .arch-card.layer-agents {{
-  border-left: 5px solid #059669;
+  border-left: 4px solid #0284C7;
   background: #F8FAFC;
 }}
 .arch-card.layer-infra {{
-  border-left: 5px solid #E60012;
+  border-left: 4px solid #0D9488;
   background: #F8FAFC;
 }}
 .arch-tag {{
   font-weight: 700;
-  font-size: 10.5pt;
+  font-size: 10pt;
   color: #0F172A;
   margin-bottom: 6px;
 }}
 .arch-body {{
-  font-size: 9pt;
+  font-size: 8.5pt;
   color: #334155;
   line-height: 1.5;
 }}
@@ -422,7 +430,7 @@ hr {{
   margin: 16px 0;
   padding: 14px;
   background: #F8FAFC;
-  border: 1px solid #CBD5E1;
+  border: 1px solid #E2E8F0;
   border-radius: 8px;
   page-break-inside: avoid;
 }}
@@ -431,31 +439,31 @@ hr {{
   flex-direction: column;
   align-items: center;
   background: #FFFFFF;
-  border: 1px solid #CBD5E1;
+  border: 1px solid #E2E8F0;
   border-radius: 6px;
   padding: 6px 10px;
   min-width: 85px;
   text-align: center;
 }}
 .pipeline-step.hitl-step {{
-  border-color: #EF4444;
-  background: #FEF2F2;
+  border-color: #FCD34D;
+  background: #FFFBEB;
 }}
 .pipeline-step.success-step {{
-  border-color: #10B981;
+  border-color: #A7F3D0;
   background: #ECFDF5;
 }}
 .step-badge {{
   font-size: 8pt;
   font-weight: 700;
-  color: #1E3A8A;
+  color: #2563EB;
   margin-bottom: 2px;
 }}
 .step-badge.red {{
-  color: #B91C1C;
+  color: #D97706;
 }}
 .step-badge.green {{
-  color: #047857;
+  color: #059669;
 }}
 .step-name {{
   font-size: 8.5pt;
@@ -547,8 +555,8 @@ hr {{
 .integ-card {{
   flex: 1;
   background: #FFFFFF;
-  border: 1px solid #CBD5E1;
-  border-top: 3px solid #E60012;
+  border: 1px solid #E2E8F0;
+  border-top: 3px solid #2563EB;
   border-radius: 6px;
   padding: 12px 14px;
 }}
@@ -574,7 +582,7 @@ hr {{
 .router-card {{
   flex: 1;
   background: #F8FAFC;
-  border: 1px solid #CBD5E1;
+  border: 1px solid #E2E8F0;
   border-top: 3px solid #2563EB;
   border-radius: 6px;
   padding: 12px 14px;
@@ -599,7 +607,7 @@ hr {{
   margin: 16px 0;
   padding: 12px;
   background: #F8FAFC;
-  border: 1px solid #CBD5E1;
+  border: 1px solid #E2E8F0;
   border-radius: 8px;
   page-break-inside: avoid;
 }}
@@ -608,7 +616,7 @@ hr {{
 }}
 .val-box {{
   background: #FFFFFF;
-  border: 1px solid #CBD5E1;
+  border: 1px solid #E2E8F0;
   border-radius: 6px;
   padding: 10px 12px;
   font-size: 8.5pt;
@@ -632,14 +640,14 @@ hr {{
   vertical-align: middle;
 }}
 .citation-badge.verified {{
-  background: #DCFCE7;
-  color: #15803D;
-  border: 1px solid #86EFAC;
+  background: #ECFDF5;
+  color: #047857;
+  border: 1px solid #A7F3D0;
 }}
 .citation-badge.warning {{
-  background: #FEF3C7;
+  background: #FFFBEB;
   color: #B45309;
-  border: 1px solid #FCD34D;
+  border: 1px solid #FDE68A;
 }}
 
 /* 团队卡片 */
@@ -654,15 +662,15 @@ hr {{
   width: calc(50% - 6px);
   box-sizing: border-box;
   background: #FFFFFF;
-  border: 1px solid #CBD5E1;
-  border-top: 3px solid #1E3A8A;
+  border: 1px solid #E2E8F0;
+  border-top: 3px solid #2563EB;
   border-radius: 6px;
   padding: 12px 14px;
 }}
 .tm-role {{
   font-size: 8pt;
   font-weight: 700;
-  color: #E60012;
+  color: #2563EB;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   margin-bottom: 2px;
@@ -713,6 +721,114 @@ hr {{
   color: #334155;
   margin-top: 4px;
   letter-spacing: 0.3px;
+}}
+
+/* 目录样式 */
+.toc-container {{
+  margin: 18px 0;
+  padding: 16px 22px;
+  background: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  border-radius: 8px;
+}}
+.toc-item, .toc-sub-item {{
+  display: flex;
+  align-items: baseline;
+  margin-bottom: 9px;
+  font-size: 10pt;
+  color: #1E293B;
+}}
+.toc-sub-item {{
+  margin-left: 22px;
+  font-size: 9.5pt;
+  color: #475569;
+  margin-bottom: 7px;
+}}
+.toc-title {{
+  font-weight: 700;
+  white-space: nowrap;
+}}
+.toc-sub-item .toc-title {{
+  font-weight: 500;
+}}
+.toc-dots {{
+  flex: 1;
+  border-bottom: 1.5px dotted #94A3B8;
+  margin: 0 8px;
+  height: 1px;
+}}
+.toc-page {{
+  font-weight: 700;
+  color: #2563EB;
+  font-family: Consolas, monospace;
+}}
+
+/* 模块网格 */
+.module-grid {{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0;
+  page-break-inside: avoid;
+}}
+.module-card {{
+  width: calc(50% - 6px);
+  box-sizing: border-box;
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-top: 3px solid #2563EB;
+  border-radius: 6px;
+  padding: 12px 14px;
+}}
+.module-card.full-width {{
+  width: 100%;
+  border-top: 3px solid #3B82F6;
+  background: #F8FAFC;
+}}
+.module-header {{
+  font-weight: 700;
+  font-size: 9.5pt;
+  color: #0F172A;
+  margin-bottom: 6px;
+}}
+.module-body {{
+  font-size: 8.5pt;
+  color: #334155;
+  line-height: 1.5;
+}}
+
+/* 交付成果物卡片 */
+.deliverable-grid {{
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 16px 0;
+  page-break-inside: avoid;
+}}
+.deliv-card {{
+  background: #FFFFFF;
+  border: 1px solid #E2E8F0;
+  border-left: 4px solid #2563EB;
+  border-radius: 6px;
+  padding: 12px 16px;
+}}
+.deliv-title {{
+  font-weight: 700;
+  font-size: 10pt;
+  color: #0F172A;
+  margin-bottom: 4px;
+}}
+.deliv-file {{
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 8.5pt;
+  color: #047857;
+  font-weight: 600;
+  margin-bottom: 6px;
+}}
+.deliv-desc {{
+  font-size: 8.5pt;
+  color: #475569;
+  line-height: 1.5;
 }}
 
 /* 分页控制与首元素间距 */
